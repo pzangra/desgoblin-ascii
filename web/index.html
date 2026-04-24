@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desgoblin ASCII</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { background-color: #0c0c0c; color: #1aff1a; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
+        #terminal {
+            padding: 20px;
+            height: 90vh;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            text-shadow: 0 0 5px #1aff1a;
+            scrollbar-width: thin;
+            scrollbar-color: #1aff1a #0c0c0c;
+        }
+        .input-line { display: flex; padding: 10px 20px; border-top: 1px solid #1aff1a; }
+        #user-input { background: transparent; border: none; color: #1aff1a; font-family: inherit; font-size: 1em; flex-grow: 1; outline: none; }
+    </style>
+</head>
+<body>
+    <div id="terminal">Initializing Desgoblin-ASCII Engine...</div>
+    <div class="input-line">
+        <span>>&nbsp;</span><input type="text" id="user-input" autofocus>
+    </div>
+
+    <script type="py" config='{"packages": [], "fetch": [{"from": "../desgoblin_ascii/", "to_folder": "src", "files": ["main.py"]}]}'>
+        import sys
+        from pyscript import display
+
+        # Redirects Python print calls to the terminal div
+        def print_to_web(*args):
+            display(" ".join(map(str, args)), target="terminal", append=True)
+
+        print_to_web("\n[SYSTEM]: Game Logic Loaded successfully.")
+        print_to_web("[SYSTEM]: Welcome, Traveler.")
+    </script>
+</body>
+</html>

@@ -1,0 +1,2478 @@
+desgoblin{
+    -->game_system{
+
+
+        ->main.py:
+
+# game_system/main.py
+
+import sys
+import os
+import time
+import keyboard
+import random as rand
+
+# Adding paths for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from map_system.map import Map
+from game_system.menu import handle_menu_input
+from battle_system.battlesys import BattleSystem
+from battle_system.character import Hero
+from battle_system.enemy import generate_boss, boss_list
+from battle_system.health_bar import HealthBar
+from battle_system.item import *
+from battle_system.weapon import Weapon,generate_weapon, low_tier_weapons, mid_tier_weapons, high_tier_weapons
+from map_system.map import shrine
+
+class Game:
+    """Main Game class to manage game flow and state."""
+    MAX_SEED_VALUE = 1000000 # Maximum integer value allowed for seed
+
+    def __init__(self):
+        self.running = True
+        self.hero = Hero(name="Hero", health=150)
+        self.hero.health_bar = HealthBar(self.hero, color="green")
+        self.current_village_tile = None  # For village interaction
+        self.cycle = 0 #initializes game cycle
+        self.boss_defeated = 0  #counts boss defeated, initializes
+        self.game_over_count = {}  # Dictionary to track retries for each seed
+
+    def clear(self) -> None:
+        """Clears the console screen."""
+        os.system("cls" if os.name == "nt" else "clear")
+
+    def run(self) -> None:
+        """Runs the main game loop, offering options for new game or seed-based game."""
+        while True:
+            self.clear()
+            menu_choice = handle_menu_input()
+
+            if menu_choice == "1":  # New game
+                self.seed = rand.randint(0, self.MAX_SEED_VALUE)
+                self.start_game()
+            elif menu_choice == "2":  # Options -> Set Seed Game
+                self.set_seed()
+                self.start_game()
+            elif menu_choice == "3":  # Exit (handled in handle_menu_input())
+                break
+
+    def set_seed(self):
+        """Sets a seed value for the map, with validation for the seed range."""
+        while True:
+            try:
+                seed_input = int(input(f"Enter seed (0 - {self.MAX_SEED_VALUE}): "))
+                if 0 <= seed_input <= self.MAX_SEED_VALUE:
+                    self.seed = seed_input
+                    break
+                else:
+                    print(f"Please enter a value between 0 and {self.MAX_SEED_VALUE}.")
+            except ValueError:
+                print("Invalid input. Please enter an integer.")
+
+    def start_game(self, new_game=True):
+        """Starts a new game or level, initializing the map with a seed."""
+        if new_game:
+            self.hero = Hero(name="Hero", health=150)
+            self.hero.health_bar = HealthBar(self.hero, color="green")
+            self.boss_defeated = 0  # Reset boss count for a new game
+            self.cycle += 1 #increase cycle count for newgamecycle
+        print(f"Using seed: {self.seed}")
+        print("Initializing map...")
+
+        # Create the map using the given seed
+        map_w, map_h = 35, 25
+        game_map = Map.generate_map_with_seed(map_w, map_h, self.seed)
+        print("Map initialized")
+        game_map.place_player(self.hero)
+        print("Player placed")
+
+        # Select and place enemies
+        selected_enemies = game_map.select_enemies(self.boss_defeated, self.cycle)
+        print(f"{len(selected_enemies)} enemies selected")
+        game_map.place_enemies_on_map(selected_enemies)
+        print("Enemies placed on map")
+
+        
+        self.total_bosses = 10  # Total bosses to defeat
+
+        # Main game loop
+        while self.running:
+            self.clear()
+            game_map.display_map(self.hero)  # Display the map
+            self.move_player(game_map)  # Handle player movement
+            if not game_map.enemies and not game_map.boss_spawned:
+                self.spawn_shrine(game_map)
+
+            # Check if boss is defeated
+            if self.boss_defeated >= self.total_bosses:
+                self.display_final_victory_screen()
+                break
+
+        print("Game Over. Thanks for playing!")
+
+    def handle_game_over(self) -> None:
+        """Handles the game-over logic, allowing retries with the same or different seed."""
+        if self.seed not in self.game_over_count:
+            self.game_over_count[self.seed] = 0
+        self.game_over_count[self.seed] += 1
+
+        retry_allowed = self.game_over_count[self.seed] <= 5
+
+        # Game over screen
+        self.clear()
+        print("Game Over!")
+        print(f"You have died {self.game_over_count[self.seed]} times on this seed.")
+        if self.game_over_count[self.seed] > 5:
+            print("Retry limit exceeded for this seed. You must select a new seed.")
+
+        # Ask for retry or new seed
+        while True:
+            if retry_allowed:
+                choice = input("Would you like to retry with the same seed (r) or enter a new one (n)? ").lower()
+            else:
+                choice = input("Please enter a new seed (n): ").lower()
+
+            if choice == 'r' and retry_allowed:
+                # Retry with the same seed
+                self.running = True
+                break
+            elif choice == 'n':
+                # Set a new seed
+                self.set_seed()
+                self.running = True
+                break
+            else:
+                print("Invalid input. Please try again.")
+
+    def display_victory_screen(self):
+        """Displays the victory screen."""
+        self.clear()
+        print("Congratulations! You defeated all enemies.")
+        input("Press Enter to exit...")
+        self.running = False
+
+    def move_player(self, game_map: Map):
+        """Handles player movement and interactions on the map in real-time."""
+
+        x, y = self.hero.player_pos  # Use hero's position to determine starting point
+        print("Use W/A/S/D to move the player, 'I' to access inventory. Press Q to quit.")
+
+        while True:
+            new_x, new_y = x, y
+
+            # Wait for a key event from the user
+            key_event = keyboard.read_event(suppress=True)
+
+            if key_event.event_type == keyboard.KEY_DOWN:
+                key = key_event.name.lower()
+
+                # Determine new position based on input
+                if key == 'w':
+                    new_x, new_y = x - 1, y
+                elif key == 's':
+                    new_x, new_y = x + 1, y
+                elif key == 'a':
+                    new_x, new_y = x, y - 1
+                elif key == 'd':
+                    new_x, new_y = x, y + 1
+                elif key == 'i':
+                    self.access_inventory()
+                    self.clear()
+                    game_map.display_map(self.hero)
+                    continue
+                elif key == 'q':
+                    print("Quitting game...")
+                    self.running = False
+                    return
+                else:
+                    # If an invalid key is pressed, ignore it and continue waiting
+                    continue
+
+                # Validate movement within map bounds
+                if new_x < 0 or new_x >= game_map.height or new_y < 0 or new_y >= game_map.width:
+                    print("Invalid move. Stay within bounds.")
+                    self.invalid_move(game_map, x, y)
+                    time.sleep(0.3)
+                    continue
+
+                # Get the tile at the new position
+                tile = game_map.map_data[new_x][new_y]
+                tile_symbol = tile.symbol_raw
+
+                # Modular encounter system using a dictionary of encounters
+                encounter_handlers = {
+                    'E': self.enemy_encounter,
+                    'S': self.shrine_encounter,
+                    '~': self.invalid_move,
+                    '§': self.invalid_move,
+                    'B': self.boss_encounter,
+                    'N': self.npc_encounter,
+                    'V': self.village_encounter,
+                    'T': self.treasure_encounter,  # New treasure encounter
+                }
+
+                # Initialize moved flag
+                moved = False
+
+                # Check if the tile requires an encounter
+                if tile_symbol in encounter_handlers:
+                    moved = encounter_handlers[tile_symbol](game_map, new_x, new_y)
+                else:
+                    # If no encounter, move the player
+                    game_map.update_player_position(x, y, new_x, new_y)
+                    moved = True
+
+                if moved:
+                    # Update player position after movement or encounter
+                    x, y = new_x, new_y
+                    self.hero.player_pos = (x, y)  # Update hero's position
+
+                # Clear the screen and display the updated map
+                self.clear()
+                game_map.display_map(self.hero)
+
+                # Small delay to prevent multiple key presses being read at once
+                time.sleep(0.1)
+
+    def access_inventory(self):
+        """Allows the player to view and use items from their inventory."""
+        while True:
+            self.clear()
+            print("Inventory:")
+            if not self.hero.items:
+                print("Your inventory is empty.")
+                input("Press Enter to return to the game.")
+                return
+            else:
+                for idx, item in enumerate(self.hero.items, 1):
+                    print(f"{idx}. {item.name} - {item.description}")
+                print("Enter the number of the item to use it, or 'b' to go back.")
+                choice = input("> ").strip()
+                if choice.lower() == 'b':
+                    return
+                elif choice.isdigit():
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(self.hero.items):
+                        item = self.hero.items.pop(idx)
+                        if isinstance(item, Cure):
+                            item.use(self.hero)
+                            print(f"You used {item.name}.")
+                            input("Press Enter to continue.")
+                        else:
+                            print("You cannot use this item here.")
+                            self.hero.items.insert(idx, item)  # Put the item back
+                            input("Press Enter to continue.")
+                    else:
+                        print("Invalid selection.")
+                        input("Press Enter to continue.")
+                else:
+                    print("Invalid input.")
+                    input("Press Enter to continue.")
+
+    def enemy_encounter(self, game_map: Map, x: int, y: int) -> bool:
+        """Handles encounters with enemies."""
+        print("Encountered an enemy!")
+        enemy = next((e for e in game_map.enemies if e.pos == (x, y)), None)
+        if enemy:
+            battle_system = BattleSystem(self.hero, enemy)
+            battle_system.start_battle()
+
+        
+            if not self.hero.alive:
+                self.display_game_over_screen()  
+                return False  
+            
+            # If enemy is defeated, remove it and handle loot.
+            if not enemy.alive:
+                game_map.map_data[x][y] = enemy.underlying_tile
+                game_map.enemies.remove(enemy)
+                self.handle_loot(enemy)
+                # Update the player's position on the map after defeating the enemy
+                game_map.update_player_position(self.hero.player_pos[0], self.hero.player_pos[1], x, y)
+                self.hero.player_pos = (x, y)  # Update hero's position
+                return True  # Player moves onto the tile
+            else:
+                # Player failed to defeat the enemy or escaped.
+                return False
+
+        else:
+            print("Error: Enemy not found at this position.")
+            return False
+
+    def boss_encounter(self, game_map: Map, x: int, y: int):
+        """Handles encounters with bosses."""
+        print("A mighty boss appears!")
+        print("\nNEED TO IMPLEMENT IN FUTURE!")
+        # Placeholder: Implement boss battle logic here
+
+    def npc_encounter(self, game_map: Map, x: int, y: int):
+        """Handles encounters with NPCs."""
+        print("You encounter a friendly NPC!")
+        print("\nNEED TO IMPLEMENT IN FUTURE!")
+        # Placeholder: Implement NPC interaction logic here
+    
+    def invalid_move(self, game_map: Map, x: int, y: int) -> bool:
+        """Handles attempts to move to invalid tiles (e.g., water or lake)."""
+        print("You cannot move there.")
+        game_map.display_map(self.hero)
+        time.sleep(0.3)
+        return False  # Player does not move onto the tile
+  
+    def handle_loot(self, enemy):
+        """Handles looting after defeating an enemy."""
+        # Handle random item drop
+        item = self.enemy_drop_item(enemy)
+        if item:
+            print(f"The enemy dropped {item.name}!")
+            # Add to hero's inventory
+            self.hero.items.append(item)
+        else:
+            print("The enemy did not drop any items.")
+        
+        # Existing weapon loot code
+        print(f"You found {enemy.weapon.name} (Tier: {enemy.tier.capitalize()})(Damage: {enemy.weapon.damage}). Value: {enemy.weapon.value} gold.")
+        choice = input("Do you want to pick it up or scrap it for gold? (p/s): ").strip().lower()
+        if choice == 'p':
+            print(f"You picked up {enemy.weapon.name}.")
+            self.hero.equip_weapon(enemy.weapon)
+        elif choice == 's':
+            print(f"Scrapped {enemy.weapon.name} for {enemy.weapon.value} gold.")
+            self.hero.cashpile += enemy.weapon.value
+            print(f"Your cashpile now contains {self.hero.cashpile} gold.")
+    
+    def enemy_drop_item(self, enemy):
+        """Determines if an enemy drops an item and returns it."""
+        # Modular drop rates
+        total_drop_chance = 50  # 50% chance that any item drops
+        item_type_chances = {
+            'cure': 50,        # If an item drops, 50% chance it's a cure
+            'throwable': 50    # If an item drops, 50% chance it's a throwable
+        }
+
+        # Determine if an item drops at all
+        if rand.randint(1, 100) > total_drop_chance:
+            return None  # No item dropped
+
+        # Determine item type
+        rand_val = rand.randint(1, 100)
+        cumulative = 0
+        item_type = None
+        for key, chance in item_type_chances.items():
+            cumulative += chance
+            if rand_val <= cumulative:
+                item_type = key
+                break
+
+        # Determine item tier based on enemy tier
+        tier_map = {
+            'low': 'small',
+            'mid': rand.choice(['mids', 'midh']),
+            'high': 'large',
+            'boss': 'superior'
+        }
+        item_tier = tier_map.get(enemy.tier, 'small')
+
+        # Generate the item
+        if item_type == 'cure':
+            item = generate_cure(item_tier)
+        elif item_type == 'throwable':
+            item = generate_throwable(item_tier)
+        else:
+            item = None
+
+        return item
+
+    def village_encounter(self, game_map: Map, x: int, y: int) -> bool:
+        """Handles encounters with villages."""
+        village_tile = game_map.map_data[x][y]
+        if village_tile.visited:
+            print("You have already visited this village.")
+            time.sleep(1)
+            return False  # Do not move onto the tile again
+        else:
+            print("You have entered a village!")
+            self.village_menu()
+            # After the village interaction, the player moves onto the village tile
+            game_map.update_player_position(self.hero.player_pos[0], self.hero.player_pos[1], x, y)
+            self.hero.player_pos = (x, y)
+            # Mark the village as visited
+            village_tile.visited = True
+            village_tile.symbol = f"\033[90mV\033[0m"  # Change to gray color
+            village_tile.symbol_raw = 'v'  # Lowercase to indicate visited
+            return True  # Player moves onto the tile
+
+    def village_menu(self):
+        """Displays the village menu and handles interactions."""
+        print("Welcome to the village!")
+        visited = False
+        while True:
+            print("\nVillage Menu:")
+            print("1. Rest (heal all HP)")
+            print("2. Visit Weapon Shop")
+            print("3. Visit Item Shop")
+            print("4. Leave Village")
+            choice = input("Choose an action: ").strip()
+            if choice == '1':
+                # Rest and heal the hero
+                self.hero.health = self.hero.health_max
+                print("You are fully healed!")
+                visited = True
+            elif choice == '2':
+                # Visit the weapon shop
+                self.weapon_shop()
+                visited = True
+            elif choice == '3':
+                # Visit the item shop
+                self.item_shop()
+                visited = True
+            elif choice == '4':
+                # Leave the village
+                print("Leaving the village.")
+                break
+            else:
+                print("Invalid choice. Try again.")
+
+        # After visiting, mark the village as visited to prevent re-entry
+        if visited:
+            # Change the village tile to indicate it was visited
+            self.current_village_tile.symbol = f"\033[90mV\033[0m"  # Change to gray color
+            self.current_village_tile.symbol_raw = 'v'  # Lowercase to indicate visited
+            
+    def weapon_shop(self):
+        """Handles the weapon shop interactions."""
+        print("\nWelcome to the Weapon Shop!")
+        # Generate weapons for sale
+        weapons_for_sale = (
+            [generate_weapon("low") for _ in range(5)] +
+            [generate_weapon("mid") for _ in range(4)] +
+            [generate_weapon("high") for _ in range(2)]
+        )
+        # Display available weapons
+        for idx, weapon in enumerate(weapons_for_sale, 1):
+            print(f"{idx}. {weapon.name} (Tier: {weapon.tier.capitalize()}) - Damage: {weapon.damage} - {weapon.value} gold")
+        choice = input("Select a weapon to buy or 'b' to go back: ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(weapons_for_sale):
+                weapon = weapons_for_sale[idx]
+                if self.hero.cashpile >= weapon.value:
+                    self.hero.cashpile -= weapon.value
+                    self.hero.equip_weapon(weapon)
+                    print(f"You bought and equipped {weapon.name}.")
+                else:
+                    print("You don't have enough gold.")
+            else:
+                print("Invalid selection.")
+        elif choice.lower() == 'b':
+            return
+        else:
+            print("Invalid input.")
+        input("Press Enter to continue.")
+
+    def item_shop(self):
+        """Handles the item shop interactions."""
+        print("\nWelcome to the Item Shop!")
+        """Handles the item shop interactions."""
+        print("\nWelcome to the Item Shop!")
+        # Generate items for sale
+        items_for_sale = [
+            generate_cure("small"),
+            generate_cure("mids"),
+            generate_cure("midh"),
+            generate_throwable("small"),
+            generate_throwable("mids")
+        ]
+        # Display available items
+        for idx, item in enumerate(items_for_sale, 1):
+            print(f"{idx}. {item.name} - {item.description} - {item.value} gold")
+        choice = input("Select an item to buy or 'b' to go back: ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(items_for_sale):
+                item = items_for_sale[idx]
+                if self.hero.cashpile >= item.value:
+                    self.hero.cashpile -= item.value
+                    self.hero.items.append(item)
+                    print(f"You bought {item.name}.")
+                else:
+                    print("You don't have enough gold.")
+            else:
+                print("Invalid selection.")
+        elif choice.lower() == 'b':
+            return
+        else:
+            print("Invalid input.")
+        input("Press Enter to continue.")
+
+    def treasure_encounter(self, game_map: Map, x: int, y: int) -> bool:
+        """Handles encounters with treasures."""
+        print("You found a treasure chest!")
+        # Implement treasure logic here
+        # For example, add gold or items to the hero's inventory
+        self.hero.cashpile += 100  # Example: add 100 gold
+        print("You received 100 gold!")
+        # After collecting, remove the treasure from the map
+        game_map.map_data[x][y] = game_map.map_data[x][y].underlying_tile
+        # Move the player onto the treasure tile
+        game_map.update_player_position(self.hero.player_pos[0], self.hero.player_pos[1], x, y)
+        self.hero.player_pos = (x, y)
+        return True
+
+    def spawn_shrine(self, game_map):
+        """Places the shrine on the map at a random location."""
+        while True:
+            x = rand.randint(1, game_map.height - 2)
+            y = rand.randint(1, game_map.width - 2)
+            if game_map.map_data[x][y].walkable and game_map.map_data[x][y].symbol_raw not in ['P', 'V']:
+                game_map.map_data[x][y] = shrine
+                game_map.boss_spawned = True
+                print("A mysterious shrine has appeared on the map!")
+                time.sleep(2)
+                break
+
+    def shrine_encounter(self, game_map: Map, x: int, y: int) -> bool:
+        """Handles the shrine encounter leading to a boss battle."""
+        print("You have discovered the shrine!")
+        boss = generate_boss(self.boss_defeated % len(boss_list))  # Loop through bosses
+        battle_system = BattleSystem(self.hero, boss)
+        battle_system.start_battle()
+
+        if not self.hero.alive:
+            self.display_game_over_screen()
+            return False
+
+        if not boss.alive:
+            print(f"You have defeated {boss.name}!")
+            # Handle boss drops, update counters, etc.
+            for item_name in boss.drops:
+                item = create_item_from_name(item_name)
+                self.hero.items.append(item)
+                print(f"You received {item.name}!")
+            self.boss_defeated += 1
+            game_map.clear_map()
+            self.display_level_up_message()
+            self.start_new_level()
+            return True
+        return False
+
+
+    def start_new_level(self):
+        """Starts a new level with increased difficulty."""
+        self.cycle += 1  # Increment cycle
+        print(f"Starting New Game+{self.cycle}")
+        self.seed = rand.randint(0, self.MAX_SEED_VALUE)
+        print(f"Generating new map with seed: {self.seed}")
+        # Create a new map without reinitializing the hero
+        self.start_game(new_game=False)
+
+    def display_level_up_message(self):
+        """Displays a message after defeating a boss."""
+        self.clear()
+        print(f"You have defeated {self.boss_defeated} out of {self.total_bosses} bosses.")
+        if self.boss_defeated < self.total_bosses:
+            print("Prepare yourself for the next challenge!")
+        else:
+            print("Congratulations! You have defeated all the bosses!")
+        input("Press Enter to continue...")
+
+    def display_game_over_screen(self):
+        self.clear()
+        print("""
+        ****************************************************
+        *                                                  *
+        *         The hero has felled..... GAME OVER!      *
+        *                                                  *
+        ****************************************************
+        """)
+        input("Press Enter to return to the main menu...")
+
+
+if __name__ == "__main__":
+    game = Game()
+    game.run()
+
+    
+        ->menu.py:
+
+# game_system/menu.py
+
+def display_title():
+    """Displays the game title and menu options."""
+    print("Welcome to the Chronicles of Desgoblin!")
+    print("1. Start Game")
+    print("2. Options")
+    print("3. Exit")
+
+def handle_menu_input():
+    """Handles input from the main menu and returns the player's choice."""
+    while True:
+        display_title()
+        choice = input("> ").strip()
+        if choice == "1":
+            print("Starting Game...")
+            return "1"
+        elif choice == "2":
+            return "2"  # Return options to set seed or other settings
+        elif choice == "3":
+            print("Exiting...")
+            exit()
+        else:
+            print("Invalid input. Please enter 1, 2, or 3.")
+            input("Press Enter to try again.")
+
+if __name__ == "__main__":
+    handle_menu_input()        
+
+    }
+    -->battle_system{
+
+
+        ->main_battlesys:
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import time
+from random import randint
+import keyboard
+from map_system.map import Map
+from map_system.tiles import *
+from game_system.menu import handle_menu_input
+from battle_system.character import Hero
+from battle_system.enemy import generate_enemy
+from battle_system.health_bar import HealthBar
+from battle_system.item import generate_item
+
+class Game:
+    def __init__(self):
+        self.running = True
+        self.hero = Hero(name="Hero", health=150)
+        self.hero.health_bar = HealthBar(self.hero, color="green")
+
+    def clear(self) -> None:
+        os.system("cls" if os.name == "nt" else "clear")
+
+    def run(self):
+        # Start with the menu and wait for input
+        print("Menu input called")
+        if handle_menu_input():  # Menu returns True when "1" is pressed
+            self.clear()
+            print("Game starting...\nInitializing map...\n")
+
+            # Initialize map and enemies
+            map_w, map_h = 30, 15
+            game_map = Map(map_w, map_h)
+            print("Map initialized")
+            game_map.place_player(self.hero)
+
+            selected_enemies = [generate_enemy("low") for _ in range(5)] + \
+                              [generate_enemy("mid") for _ in range(3)] + \
+                              [generate_enemy("high") for _ in range(2)]
+            game_map.place_enemies_on_map(selected_enemies)
+
+            # Main game loop
+            while self.running:
+                self.clear()
+                game_map.display_map()  # Display the map
+                self.move_player(game_map)  # Capture movement
+
+                # Check if all enemies are defeated
+                if not game_map.enemies:
+                    self.display_victory_screen()
+                    break
+
+            print("Game Over. Thanks for playing!")
+    
+    def display_victory_screen(self):
+        self.clear()
+        print("Congratulations! You defeated all enemies.")
+        input("Press any key to exit...")
+        exit()
+    
+    def move_player(self, game_map: Map):
+        direction = input("Enter direction (w/a/s/d): ").lower()
+        x, y = game_map.player_pos
+        new_x, new_y = x, y
+
+        # Move the player based on direction
+        if direction == 'w' and x > 0:
+            new_x, new_y = x - 1, y
+        elif direction == 's' and x < game_map.height - 1:
+            new_x, new_y = x + 1, y
+        elif direction == 'a' and y > 0:
+            new_x, new_y = x, y - 1
+        elif direction == 'd' and y < game_map.width - 1:
+            new_x, new_y = x, y + 1
+        else:
+            print("Invalid input or move. Try again.")
+            return  # Ask for input again
+
+        # Check if player encounters an enemy
+        if game_map.map_data[new_x][new_y].symbol_raw == 'E':
+            print("Encountered an enemy!")
+            self.battle(game_map, new_x, new_y)
+        else:
+            # Update map: move player to new position
+            game_map.move_player(new_x, new_y)
+        
+    def battle(self, game_map: Map, enemy_x: int, enemy_y: int):
+        enemy = game_map.get_enemy_at(enemy_x, enemy_y)
+
+        if not enemy:
+            print("No enemy found at this location.")
+            return
+
+        # Battle loop
+        self.clear()
+        print(f"Battle started between {self.hero.name} and {enemy.name}!")
+        while self.hero.alive and enemy.alive:
+            # Display both health bars
+            self.hero.health_bar.draw()
+            enemy.health_bar.draw()
+
+            # Player's choice of action
+            action = input("Choose your action: [a]ttack, [s]kills, [i]tems, [e]scape: ").lower()
+
+            if action == 'a':
+                # Player attacks
+                self.hero.attack(enemy)
+                if enemy.alive:
+                    enemy.attack(self.hero)
+            elif action == 's':
+                print("Skills to be implemented. Choose another action.")
+                continue
+            elif action == 'i':
+                self.use_item()
+            elif action == 'e':
+                if self.attempt_escape(enemy):
+                    return
+            else:
+                print("Invalid action. Try again.")
+                continue
+
+            time.sleep(1)
+
+        if not enemy.alive:
+            print(f"{enemy.name} has been defeated!")
+            game_map.remove_enemy(enemy)
+            self.handle_loot(enemy)
+        elif not self.hero.alive:
+            print("You have been defeated! Game Over.")
+            exit()
+    
+    def handle_loot(self, enemy):
+        print(f"You found {enemy.weapon.name}. Value: {enemy.weapon.value} gold.")
+        choice = input("Do you want to pick it up or scrap it for gold? (p/s): ").lower()
+        if choice == 'p':
+            print(f"You picked up {enemy.weapon.name}.")
+            self.hero.scrap_current_weapon()
+            self.hero.equip(enemy.weapon)
+        elif choice == 's':
+            print(f"Scrapped {enemy.weapon.name} for {enemy.weapon.value} gold.")
+            self.hero.add_gold(enemy.weapon.value)
+
+    def use_item(self):
+        # Use an item during battle
+        item = generate_item()  # To be replaced by inventory system
+        if item:
+            print(f"Using {item.name}!")
+            item.use(self.hero)
+
+    def attempt_escape(self, enemy):
+        escape_chance = {"low": 60, "mid": 40, "high": 20}
+        chance = escape_chance.get(enemy.tier, 0)
+        if randint(1, 100) <= chance:
+            print("Escape successful!")
+            return True
+        else:
+            print("Escape failed!")
+            enemy.attack(self.hero)
+            return False
+
+if __name__ == "__main__":
+    game = Game()
+    game.run()
+
+        ->battlesys:
+
+# battle_system/battlesys.py
+
+import random
+import os
+from battle_system.character import Hero, Enemy
+from battle_system.health_bar import HealthBar
+from battle_system.item import *
+
+class BattleSystem:
+    """Class to manage battles between the hero and enemies."""
+
+    def __init__(self, hero: Hero, enemy: Enemy):
+        self.hero = hero
+        self.enemy = enemy
+        self.running = True
+        self.battle_log = [] #initialize battle log
+
+    def start_battle(self):
+        """Starts the battle loop."""
+        self.hero.health_bar.update()
+        self.enemy.health_bar.update()
+        self.clear_screen()
+
+        while self.running and self.hero.alive and self.enemy.alive:
+            # Display battle status
+            self.display_battle_status()
+
+            # Player's turn
+            action = input("\nChoose your action: [a]ttack, [s]kills, [i]tems, [e]scape: ").strip().lower()
+
+            if action == 'a':
+                self.attack()
+            elif action == 's':
+                self.use_skill()
+            elif action == 'i':
+                self.use_item()
+            elif action == 'e':
+                if self.escape():
+                    break
+            else:
+                self.battle_log.append("Invalid action. Choose again.")
+                continue
+
+            # Enemy's turn if still alive
+            if self.enemy.alive and self.running:
+                self.enemy_attack()
+
+            # Check for end of battle
+            if not self.hero.alive:
+                self.battle_log.append("You have been defeated! Game Over.")
+                self.running = False
+                return
+            elif not self.enemy.alive:
+                self.battle_log.append(f"{self.enemy.name} has been defeated!")
+                experience_gained = self.calculate_experience(self.enemy)
+                self.hero.gain_experience(experience_gained)
+                self.running = False
+
+    def display_battle_status(self):
+        """Displays the current status of the battle."""
+        self.clear_screen()
+        print(f"{self.hero.name} HP: {self.hero.health}/{self.hero.health_max} | Weapon: {self.hero.weapon.name} (Damage: {self.hero.weapon.damage}) | Cash: {self.hero.cashpile}")
+        self.hero.health_bar.draw()
+        print(f"{self.enemy.name} HP: {self.enemy.health}/{self.enemy.health_max} | Weapon: {self.enemy.weapon.name} (Damage: {self.enemy.weapon.damage})")
+        self.enemy.health_bar.draw()
+        print("\nBattle Log:")
+        for log_entry in self.battle_log[-5:]:  # Display the last 5 entries
+            print(log_entry)
+    
+    def attack(self):
+        """Handles the hero's attack action."""
+        damage_info = self.hero.attack(self.enemy)
+        self.battle_log.append(damage_info)
+
+    def use_skill(self):
+        """Handles the hero's skill usage."""
+        print("\nSkill system is under development.")
+        input("Press Enter to continue.")
+
+    def use_item(self):
+        """Handles the hero using an item."""
+        if not self.hero.items:
+            print("You have no items to use.")
+            input("Press Enter to continue.")
+            return
+        print("\nItems:")
+        for idx, item in enumerate(self.hero.items, 1):
+            print(f"{idx}. {item.name} - {item.description}")
+        choice = input("Select an item to use or 'b' to go back: ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(self.hero.items):
+                item = self.hero.items.pop(idx)
+                item.use(self.hero)
+                print(f"You used {item.name}.")
+            else:
+                print("Invalid selection.")
+        elif choice.lower() == 'b':
+            return
+        else:
+            print("Invalid input.")
+        input("Press Enter to continue.")
+
+    def escape(self):
+        """Attempts to escape from the battle."""
+        escape_chance = {"low": 60, "mid": 40, "high": 20}
+        chance = escape_chance.get(self.enemy.tier, 0)
+        if random.randint(1, 100) <= chance:
+            print("Escape successful!")
+            self.running = False
+            return True
+        else:
+            print("Escape failed!")
+            return False
+
+    def enemy_attack(self):
+        """Handles the enemy's attack action."""
+        damage_info = self.enemy.attack(self.hero)
+        self.battle_log.append(damage_info)
+
+    def calculate_experience(self, enemy):
+        """Calculates experience gained from defeating an enemy."""
+        tier_experience = {"low": 50, "mid": 100, "high": 200}
+        return tier_experience.get(enemy.tier, 0)
+
+    def use_item(self):
+        """Handles the hero using an item."""
+        if not self.hero.items:
+            print("You have no items to use.")
+            input("Press Enter to continue.")
+            return
+
+        print("\nItems:")
+        for idx, item in enumerate(self.hero.items, 1):
+            print(f"{idx}. {item.name} - {item.description}")
+        choice = input("Select an item to use or 'b' to go back: ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(self.hero.items):
+                item = self.hero.items.pop(idx)
+                if isinstance(item, Cure):
+                    item.use(self.hero)
+                elif isinstance(item, Throwable):
+                    item.use(self.enemy)
+                else:
+                    print("Item cannot be used.")
+                input("Press Enter to continue.")
+            else:
+                print("Invalid selection.")
+        elif choice.lower() == 'b':
+            return
+        else:
+            print("Invalid input.")
+            input("Press Enter to continue.")
+
+    def clear_screen(self):
+        """Clears the console screen."""
+        os.system('cls' if os.name == 'nt' else 'clear')
+        """Clears the console screen."""
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+        ->character:
+
+from abc import ABC
+from typing import Tuple
+import random
+from battle_system.weapon import Weapon, generate_weapon
+from battle_system.health_bar import HealthBar
+from battle_system.weapon import *
+
+class Character(ABC):
+    """Base class for all characters in the game."""
+
+    counter_ch: int = 20  # Counter-attack chance percentage
+
+    def __init__(self, name: str, health: int, evade_ch: int, crit_ch: int, armor: int) -> None:
+        self.name = name
+        self.health = health
+        self.health_max = health
+        self.evade_ch = evade_ch  # Evade chance percentage
+        self.crit_ch = crit_ch    # Critical hit chance percentage
+        self.armor = armor        # Damage reduction
+        self.weapon = generate_weapon("low")  # Default weapon
+        self.health_bar = HealthBar(self, color="default")
+
+    @property
+    def alive(self) -> bool:
+        """Returns True if the character is alive."""
+        return self.health > 0
+
+    def attack(self, target, attack_type="normal", is_counter: bool = False) -> str:
+        """Performs an attack on the target."""
+        messages = []
+
+        if not self.alive:
+            messages.append(f"{self.name} cannot attack because they are defeated.")
+            return "\n".join(messages)
+
+        if self.roll_event(target.evade_ch):
+            messages.append(f"{target.name} evaded the attack!")
+            return "\n".join(messages)
+
+        base_damage = self.calculate_base_damage(attack_type)
+        damage_after_crit, crit_message = self.deal_crit(base_damage)
+        if crit_message:
+            messages.append(crit_message)
+        final_damage = max(damage_after_crit - target.armor, 1)
+
+        target.take_damage(final_damage)
+        messages.append(f"{self.name} attacked {target.name} with {self.weapon.name} for {final_damage} damage.")
+
+        # Counter-attack logic
+        if not is_counter and target.alive and self.roll_event(target.counter_ch):
+            messages.append(f"{target.name} initiated a counter-attack!")
+            counter_attack_info = target.attack(self, is_counter=True)
+            messages.append(counter_attack_info)
+
+        return "\n".join(messages)
+
+    def calculate_base_damage(self, attack_type="normal") -> int:
+        """Calculates base damage based on attack type."""
+        min_damage = int(self.weapon.damage * 0.6) if attack_type == "quick" else int(self.weapon.damage * 0.8)
+        max_damage = int(self.weapon.damage * 1.5) if attack_type == "heavy" else int(self.weapon.damage * 1.2)
+        if max_damage <= min_damage:
+            max_damage = min_damage + 1
+        return random.randint(min_damage, max_damage)
+
+    @staticmethod
+    def roll_event(chance: int) -> bool:
+        """Determines if an event occurs based on chance percentage."""
+        return random.randint(1, 100) <= chance
+
+    # In the Character class
+    def deal_crit(self, base_damage: int) -> Tuple[int, str]:
+        """Calculates critical hit damage."""
+        if self.roll_event(self.crit_ch):
+            crit_damage = int(base_damage * 1.5)
+            crit_message = f"Critical hit! {self.name} deals {crit_damage} damage!"
+            return crit_damage, crit_message
+        return base_damage, ""
+
+    def take_damage(self, damage: int) -> None:
+        """Applies damage to the character."""
+        self.health -= damage
+        self.health = max(self.health, 0)
+        self.health_bar.update()
+
+class Hero(Character):
+    """Player-controlled hero character."""
+
+    def __init__(self, name: str, health: int):        
+        super().__init__(name=name, health=health, evade_ch=10, crit_ch=15, armor=5)
+        self.cashpile = 0
+        self.items = []         # Inventory for consumable items
+        self.equipment = []     # Inventory for equipment (armor, accessories)
+        self.weapon = Weapon(name="Fists", weapon_type="blunt", damage=2, value=0)
+        self.health_bar = HealthBar(self, color="green")
+        self.player_pos = (1, 1)
+        self.level = 1
+        self.experience = 0
+        self.experience_to_next_level = 100
+ 
+    def attack(self, target, attack_type="normal", is_counter: bool = False) -> str:
+        """Performs an attack on the target."""
+        messages = []
+
+        if not self.alive:
+            messages.append(f"{self.name} cannot attack because they are defeated.")
+            return "\n".join(messages)
+
+        if self.roll_event(target.evade_ch):
+            messages.append(f"{target.name} evaded the attack!")
+            return "\n".join(messages)
+
+        base_damage = self.calculate_base_damage(attack_type)
+        damage_after_crit, crit_message = self.deal_crit(base_damage)
+        if crit_message:
+            messages.append(crit_message)
+        final_damage = max(damage_after_crit - target.armor, 1)
+
+        target.take_damage(final_damage)
+        messages.append(f"{self.name} attacked {target.name} with {self.weapon.name} for {final_damage} damage.")
+
+        # Counter-attack logic
+        if not is_counter and target.alive and self.roll_event(target.counter_ch):
+            messages.append(f"{target.name} initiated a counter-attack!")
+            counter_attack_info = target.attack(self, is_counter=True)
+            messages.append(counter_attack_info)
+
+        return "\n".join(messages)
+    
+    def equip_weapon(self, new_weapon: Weapon) -> None:
+        # Add current weapon's value to cashpile before switching
+        self.cashpile += self.weapon.value
+        print(f"Scrapped your previous weapon '{self.weapon.name}' for {self.weapon.value} gold.")
+        # Equip the new weapon
+        self.weapon = new_weapon
+        print(f"You equipped '{self.weapon.name}' (Tier: {self.get_weapon_tier(self.weapon)})") 
+    
+    def gain_experience(self, amount):
+        """Adds experience points and checks for level up."""
+        self.experience += amount
+        print(f"{self.name} gained {amount} experience points.")
+        while self.experience >= self.experience_to_next_level:
+            self.level_up()
+
+    def get_weapon_tier(self, weapon: Weapon) -> str:
+        """Determine weapon tier based on weapon name"""
+        if weapon.name in [w.name for w in low_tier_weapons]:
+            return "Low"
+        elif weapon.name in [w.name for w in mid_tier_weapons]:
+            return "Mid"
+        elif weapon.name in [w.name for w in high_tier_weapons]:
+            return "High"
+        return "Unknown"
+
+    def level_up(self):
+        """Levels up the hero, increasing stats."""
+        self.experience -= self.experience_to_next_level
+        self.level += 1
+        self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
+        self.health_max += 10
+        self.health = self.health_max
+        self.evade_ch += 1
+        self.crit_ch += 1
+        self.armor += 1
+        print(f"{self.name} leveled up to level {self.level}!")
+        print("Stats increased: Health +10, Evade Chance +1%, Crit Chance +1%, Armor +1")
+
+
+class Enemy(Character):
+    """Enemy characters controlled by the game."""
+
+    def __init__(self, name: str, health: int, weapon: Weapon, evade_ch: int, crit_ch: int, armor: int, tier: str) -> None:
+        super().__init__(name=name, health=health, evade_ch=evade_ch, crit_ch=crit_ch, armor=armor)
+        self.weapon = weapon
+        self.health_bar = HealthBar(self, color="red")
+        self.tier = tier            # Enemy's tier (low, mid, high)
+        self.pos = None             # Position on the map
+        self.underlying_tile = None # Tile beneath the enemy (for map updates)
+
+    def set_position(self, x: int, y: int, underlying_tile):
+        """Sets the enemy's position on the map."""
+        self.pos = (x, y)
+        self.underlying_tile = underlying_tile
+
+    def drop_loot(self):
+        """Defines the loot dropped by the enemy upon defeat."""
+        # You can expand this method to include items or gold
+        return self.weapon
+    
+    def scale_stats(self, multiplier):
+        """Scales the enemy's stats by the given multiplier."""
+        self.health = int(self.health * multiplier)
+        self.health_max = self.health
+        self.weapon.damage = int(self.weapon.damage * multiplier)
+        self.armor = int(self.armor * multiplier)
+
+        ->enemy:
+
+# battle_system/enemy.py
+
+from random import choice, randint
+from battle_system.character import Enemy
+from battle_system.weapon import Weapon, generate_weapon
+from battle_system.item import create_item_from_name
+
+enemy_names = {
+    "low": [
+        "Slime", "Rat", "Goblin", "Spider", "Bat", "Snake", "Kobold", "Imp", "Bandit",
+        "Skeleton", "Zombie", "Giant Rat", "Cave Beetle", "Mud Crab", "Shadow Cat", "Wild Dog",
+        "Giant Centipede", "Boggart", "Mimicling", "Pixie", "Grelling", "Dust Mephit", "Giant Spider",
+        "Stirge", "Ghoul", "Darkling", "Wisp", "Crowfolk", "Carrion Beetle", "Vermling", "Giant Ant",
+        "Kappa", "Mud Elemental", "Scavenger", "Fire Beetle", "Crimson Bat", "Hagling", "Feral Boar",
+        "Dire Rabbit", "Raven", "Young Harpy", "Wood Sprite", "Giant Snail", "Frost Beetle", "Shade",
+        "Cursed Doll", "Gloomling", "Thornling", "Drudge", "Forest Imp", "Scarecrow", "Gutter Rat",
+        "Young Basilisk", "Giant Leech", "Dark Fairy", "Ash Crawler", "Thieving Monkey", "Dire Mole",
+        "Muck Dweller", "Fungal Sprite", "Will-o'-Rat", "Briar Beast", "Rusted Automaton", "Rotten Hound",
+        "Pond Scum", "Grave Mite", "Lesser Djinn", "Hedge Gremlin", "Nettle Stalker", "Wicker Man",
+        "Black Cat", "Lesser Kobold", "Gloom Bat", "Mist Lurker", "Bog Imp", "Weasel", "Hedgehog",
+        "Ragged Ghoul", "Young Hobgoblin", "Firefly Swarm", "Ashen Wisp", "Plague Rat", "Grotto Crab",
+        "Dire Toad", "Crag Lizard", "Bramble Elemental", "Shadow Hare", "Sewer Slime", "Wild Goat",
+        "Rubble Sprite", "Rock Grub", "Night Roach", "Giant Worm", "Lost Soul", "Gutter Snipe",
+        "Broken Puppet"
+    ],
+    "mid": [
+        "Big Goblin", "Hobgoblin", "Orc", "Gnoll", "Wight", "Troll", "Ogre", "Minotaur", "Centaur",
+        "Werewolf", "Harpy", "Griffon", "Cyclops", "Gargoyle", "Rakshasa", "Sea Hag", "Doppelganger",
+        "Dark Knight", "Redcap", "Chimera", "Banshee", "Dire Wolf", "Will-o'-Wisp", "Revenant", "Barghest",
+        "Manticore", "Gorgon", "Siren", "Dryad", "Basilisk", "Cursed Armor", "Grendel", "Bone Naga",
+        "Keres", "Anubian Guardian", "Fomorian", "Kelpie", "Wendigo", "Blood Hunter", "Nymph", "Spriggan",
+        "Werebear", "Wyrmling", "Shadow Mastiff", "Peryton", "Phantom Knight", "Headless Horseman",
+        "Sand Wraith", "Storm Elemental", "Spectral Archer", "Voidwalker", "Night Hag", "Ghoul Lord",
+        "Moroi", "Ghul", "Stone Golem", "Hellhound", "Ashen Revenant", "Pit Fiendling", "Fire Djinn",
+        "Crocotta", "Ceryneian Hind", "Myrmidon", "Bog Witch", "Fiery Salamander", "Onyx Gargoyle",
+        "Frost Troll", "Infernal Imp", "Cave Troll", "Sewer King", "Giant Scorpion", "Silverback Ape",
+        "Myrkalfar", "Black Annis", "Ash Wraith", "Desert Ghoul", "Clockwork Soldier", "Vodyanoi",
+        "Rusalka", "Draugr", "Half-Orc Brute", "Hill Giant", "Fenrir Pup", "Marble Statue", "Bugbear",
+        "Horned Devil", "Spectral Swordsman", "Harlequin Shade", "Cacodaemon", "Gloom Weaver",
+        "Blood Shade", "Black Knight"
+    ],
+    "high": [
+        "Wyvern", "Drake", "Titan", "Lich", "Vampire", "Dragon", "Behemoth", "Balor", "Kraken",
+        "Nightmare", "Elder Brain", "Shoggoth", "Star Spawn", "Demon Lord", "Pit Fiend", "Moloch",
+        "Hydra", "Hellhound Alpha", "Aboleth", "Elder Deep One", "Phoenix", "Archdemon", "Leviathan",
+        "Seraphim", "Bone Dragon", "Storm Giant", "Sphinx", "Charybdis", "Scylla", "Thanatos",
+        "Hecatoncheires", "Tarrasque", "Frost Wyrm", "Chernobog", "Anubis", "Fenrir", "Jormungandr",
+        "Nemean Lion", "Yamata-no-Orochi", "Ifrit", "Djinn Lord", "Nephilim", "Archon", "Astaroth",
+        "Beelzebub", "Belial", "Asmodeus", "Lilith", "Ziz", "Mammon", "Azazel", "Bael", "Qliphoth Beast",
+        "The Black Goat", "Great Unclean One", "Prince of Darkness", "Yaldabaoth", "Abyssal Wyrm",
+        "Ereshkigal", "Vritra", "Kali", "Garuda", "Ravana", "The Morrigan", "Baphomet", "Chimera Prime",
+        "Typhon", "Echidna", "Pontianak", "Black Tortoise", "Gugalanna", "Zuul", "Kukulkan", "The Erlking",
+        "Archlich", "Death Knight", "Lord of Change", "Archfiend", "Ashura", "Demogorgon", "Nyarlathotep",
+        "Ithaqua", "Yog-Sothoth", "Cthulhu", "Apep", "Set", "Geryon", "Aegir", "Kronos", "Hyperion",
+        "Atlas", "The Sorrow", "Father of Serpents", "Celestial Dragon", "The Devourer", "The False Prophet"
+    ]
+}
+
+
+def generate_enemy(tier: str, cycle: int = 0) -> Enemy:
+    """Generates an enemy based on the specified tier."""
+    names = enemy_names.get(tier)
+    if not names:
+        raise ValueError("Invalid tier for enemy generation")
+    name = choice(names)
+    health_ranges = {
+        "low": (10, 30),
+        "mid": (40, 80),
+        "high": (80, 120)
+    }
+    evade_ch_ranges = {
+        "low": (0, 5),
+        "mid": (5, 10),
+        "high": (10, 15)
+    }
+    crit_ch_ranges = {
+        "low": (5, 8),
+        "mid": (8, 12),
+        "high": (12, 20)
+    }
+    armor_ranges = {
+        "low": (0, 2),
+        "mid": (2, 6),
+        "high": (6, 12)
+    }
+
+    # Assign initial values
+    health = randint(*health_ranges[tier])
+    evade_ch = randint(*evade_ch_ranges[tier])
+    crit_ch = randint(*crit_ch_ranges[tier])
+    armor = randint(*armor_ranges[tier])
+
+
+     # Scale stats based on cycle
+    health = int(health * (1 + 0.2 * cycle))
+    evade_ch = int(evade_ch * (1 + 0.1 * cycle))
+    crit_ch = int(crit_ch * (1 + 0.1 * cycle))
+    armor = int(armor * (1 + 0.1 * cycle))
+    weapon = generate_weapon(tier, cycle)
+    # Create the enemy with adjusted stats
+    return Enemy(
+        name=name,
+        health=health,
+        weapon=weapon,
+        evade_ch=evade_ch,
+        crit_ch=crit_ch,
+        armor=armor,
+        tier=tier
+    )
+
+class Boss(Enemy):
+    """Boss characters with special abilities."""
+
+    def __init__(self, name, health, weapon, evade_ch, crit_ch, armor, tier, skills, drops):
+        super().__init__(name, health, weapon, evade_ch, crit_ch, armor, tier)
+        self.skills = skills
+        self.drops = drops
+
+boss_list = [
+    {
+        'name': 'Dragon Lord',
+        'health': 300,
+        'weapon': Weapon(name='Flame Breath', weapon_type='natural', damage=25),
+        'evade_ch': 10,
+        'crit_ch': 20,
+        'armor': 15,
+        'tier': 'boss',
+        'skills': ['Firestorm', 'Tail Swipe'],
+        'drops': ['Legendary Sword', 'Dragon Scale']
+    },
+    # Define other bosses similarly...
+]
+
+def generate_boss(boss_index):
+    """Generates a boss based on the index in the boss list."""
+    boss_data = boss_list[boss_index]
+    boss = Boss(
+        name=boss_data['name'],
+        health=boss_data['health'],
+        weapon=boss_data['weapon'],
+        evade_ch=boss_data['evade_ch'],
+        crit_ch=boss_data['crit_ch'],
+        armor=boss_data['armor'],
+        tier=boss_data['tier'],
+        skills=boss_data['skills'],
+        drops=boss_data['drops']
+    )
+    return boss
+
+        ->weapon: 
+
+# battle_system/weapon.py
+
+from random import randint, choice
+
+
+class Weapon:
+    """A class representing a weapon."""
+
+    def __init__(self, name: str, weapon_type: str, damage: int = 0, value: int = 0, tier: str = "low", cycle:int = 0) -> None:
+        self.name = name
+        self.weapon_type = weapon_type
+        self.damage = damage
+        self.dmg_min = int(damage * 0.7)  # Minimum damage (70% of base damage)
+        self.dmg_max = int(damage * 1.3)  # Maximum damage (130% of base damage)
+        self.value = value
+        self.tier = tier
+        self.cycle = cycle  # Added cycle attribute
+
+    def get_display_name(self):
+        """Returns the weapon name adjusted for the cycle."""
+        if self.cycle == 0:
+            return self.name
+        elif self.cycle == 1:
+            return f"{self.name}+"
+        else:
+            return f"{self.name}+{self.cycle}"
+
+def generate_weapon(tier: str, cycle: int = 0) -> Weapon:
+    """Generates a weapon based on the specified tier."""
+    weapon_lists = {
+        "low": low_tier_weapons,
+        "mid": mid_tier_weapons,
+        "high": high_tier_weapons
+    }
+    tier_stats = {
+        "low": {
+            "damage_range": (3, 6),
+            "value_range": (5, 10)
+        },
+        "mid": {
+            "damage_range": (7, 12),
+            "value_range": (15, 25)
+        },
+        "high": {
+            "damage_range": (13, 20),
+            "value_range": (30, 50)
+        }
+    }
+    weapon_list = weapon_lists.get(tier)
+    stats = tier_stats.get(tier)
+    if not weapon_list or not stats:
+        raise ValueError("Invalid tier for weapon generation")
+
+    # Select a random weapon from the tier's weapon list
+    weapon_template = choice(weapon_list)
+    
+    # Generate damage and value within the tier's range
+    damage = randint(*stats['damage_range'])
+    value = randint(*stats['value_range'])
+    # Scale damage and value with cycle
+    damage = int(damage * (1 + 0.2 * cycle))
+    value = int(value * (1 + 0.2 * cycle))
+    # Adjust weapon name
+    weapon_name = weapon_template.name
+    if cycle == 1:
+        weapon_name += '+'
+    elif cycle > 1:
+        weapon_name += f'+{cycle}'
+    # Create the weapon with the adjusted name
+    return Weapon(
+        name=weapon_name,
+        weapon_type=weapon_template.weapon_type,
+        damage=damage,
+        value=value,
+        tier=tier,
+        cycle=cycle
+    )
+
+# Weapon lists per tier, with Weapon instances containing name and weapon_type
+
+# Low-tier weapons (natural and normal)
+low_tier_weapons_norm = [
+    Weapon(name="Dagger", weapon_type="sharp"),
+    Weapon(name="Club", weapon_type="blunt"),
+    Weapon(name="Short Bow", weapon_type="ranged"),
+    Weapon(name="Fists", weapon_type="blunt"),
+    Weapon(name="Hand Axe", weapon_type="sharp"),
+    Weapon(name="Sling", weapon_type="ranged"),
+    Weapon(name="Hatchet", weapon_type="sharp"),
+    Weapon(name="Wooden Spear", weapon_type="sharp"),
+    Weapon(name="Rusty Sword", weapon_type="sharp"),
+    Weapon(name="Throwing Stone", weapon_type="blunt"),
+    Weapon(name="Peasant's Sickle", weapon_type="sharp"),
+    Weapon(name="Training Sword", weapon_type="sharp"),
+    Weapon(name="Pitchfork", weapon_type="sharp"),
+    Weapon(name="Wooden Mace", weapon_type="blunt"),
+    Weapon(name="Makeshift Dagger", weapon_type="sharp"),
+    Weapon(name="Bronze Knife", weapon_type="sharp"),
+    Weapon(name="Short Staff", weapon_type="staff"),
+    Weapon(name="Stone Hammer", weapon_type="blunt"),
+    Weapon(name="Bone Club", weapon_type="blunt"),
+    Weapon(name="Throwing Dart", weapon_type="ranged"),
+    Weapon(name="Wooden Flail", weapon_type="flail"),
+    Weapon(name="Farm Hoe", weapon_type="sharp"),
+    Weapon(name="Rusty Crossbow", weapon_type="ranged"),
+    Weapon(name="Splintered Axe", weapon_type="sharp"),
+    Weapon(name="Iron Shard", weapon_type="sharp"),
+    Weapon(name="Thorn Whip", weapon_type="whip"),
+    Weapon(name="Small Hatchet", weapon_type="sharp"),
+    Weapon(name="Stone Hatchet", weapon_type="sharp"),
+    Weapon(name="Bone Dagger", weapon_type="sharp"),
+    Weapon(name="Rusty Scythe", weapon_type="scythe"),
+    Weapon(name="Pewter Club", weapon_type="blunt"),
+    Weapon(name="Iron Hook", weapon_type="hook"),
+    Weapon(name="Splintered Spear", weapon_type="sharp"),
+    Weapon(name="Farmer's Spade", weapon_type="blunt"),
+    Weapon(name="Throwing Pebble", weapon_type="ranged"),
+    Weapon(name="Makeshift Sling", weapon_type="ranged"),
+    Weapon(name="Bronze Shortsword", weapon_type="sharp"),
+    Weapon(name="Wooden Cudgel", weapon_type="blunt"),
+    Weapon(name="Shepherd's Staff", weapon_type="staff"),
+    Weapon(name="Spike Club", weapon_type="blunt"),
+    Weapon(name="Flint Knife", weapon_type="sharp"),
+    Weapon(name="Iron Spike", weapon_type="sharp"),
+    Weapon(name="Small Throwing Axe", weapon_type="ranged"),
+    Weapon(name="Reed Spear", weapon_type="sharp"),
+    Weapon(name="Weighted Stick", weapon_type="blunt"),
+    Weapon(name="Carpenter's Mallet", weapon_type="blunt"),
+    Weapon(name="Small Pickaxe", weapon_type="sharp"),
+    Weapon(name="Wooden Javelin", weapon_type="ranged"),
+    Weapon(name="Brick Sling", weapon_type="ranged"),
+    Weapon(name="Stone-Edged Flail", weapon_type="flail"),
+    Weapon(name="Iron Tipped Cane", weapon_type="blunt"),
+    Weapon(name="Garden Shears", weapon_type="sharp"),
+    Weapon(name="Broken Sword", weapon_type="sharp"),
+    Weapon(name="Training Club", weapon_type="blunt"),
+    Weapon(name="Pointed Stick", weapon_type="sharp"),
+    Weapon(name="Primitive Shovel", weapon_type="blunt"),
+    Weapon(name="Rope Sling", weapon_type="ranged"),
+    Weapon(name="Clay Brick", weapon_type="blunt"),
+    Weapon(name="Jagged Shard", weapon_type="sharp"),
+    Weapon(name="Rusty Pitchfork", weapon_type="sharp"),
+    Weapon(name="Brass Knuckles", weapon_type="blunt"),
+    Weapon(name="Rusted Hatchet", weapon_type="sharp"),
+    Weapon(name="Bronze Gladius", weapon_type="sharp"),
+    Weapon(name="Stone Thrower", weapon_type="ranged"),
+    Weapon(name="Sharpened Bone", weapon_type="sharp"),
+    Weapon(name="Fisherman's Gaff", weapon_type="hook"),
+    Weapon(name="Ornate Stick", weapon_type="blunt"),
+    Weapon(name="Pebble Sling", weapon_type="ranged"),
+    Weapon(name="Wooden Pike", weapon_type="sharp"),
+    Weapon(name="Leather Whip", weapon_type="whip"),
+    Weapon(name="Iron Plated Knuckles", weapon_type="blunt"),
+    Weapon(name="Stone Club", weapon_type="blunt"),
+    Weapon(name="Iron Poker", weapon_type="sharp"),
+    Weapon(name="Garden Hoe", weapon_type="sharp"),
+    Weapon(name="Gutter Knife", weapon_type="sharp"),
+    Weapon(name="Iron Trowel", weapon_type="sharp"),
+    Weapon(name="Kitchen Cleaver", weapon_type="sharp"),
+    Weapon(name="Small Mace", weapon_type="blunt"),
+    Weapon(name="Rough Scythe", weapon_type="scythe"),
+    Weapon(name="Training Mace", weapon_type="blunt"),
+    Weapon(name="Brickbat", weapon_type="blunt"),
+    Weapon(name="Old Crossbow", weapon_type="ranged"),
+    Weapon(name="Simple Javelin", weapon_type="ranged"),
+    Weapon(name="Farmyard Rake", weapon_type="sharp"),
+    Weapon(name="Brass Handbell", weapon_type="blunt"),
+    Weapon(name="Iron Cosh", weapon_type="blunt"),
+    Weapon(name="Throwing Star", weapon_type="ranged"),
+    Weapon(name="Peasant Flail", weapon_type="flail"),
+    Weapon(name="Wooden Bo Staff", weapon_type="staff"),
+    Weapon(name="Butcher's Cleaver", weapon_type="sharp"),
+    Weapon(name="Wagon Wheel Spoke", weapon_type="blunt")
+]
+
+low_tier_weapons_nat = [
+    Weapon(name="Bounce", weapon_type="natural"),
+    Weapon(name="Tail Whip", weapon_type="natural"),
+    Weapon(name="Bites", weapon_type="natural"),
+    Weapon(name="Tentacle Slap", weapon_type="natural"),
+    Weapon(name="Bone Claws", weapon_type="natural"),
+    Weapon(name="Spiked Carapace", weapon_type="natural"),
+    Weapon(name="Venomous Fangs", weapon_type="natural"),
+    Weapon(name="Corrupted Vine", weapon_type="natural"),
+    Weapon(name="Acidic Touch", weapon_type="natural"),
+    Weapon(name="Ghoul Claws", weapon_type="natural"),
+    Weapon(name="Fiery Peck", weapon_type="natural"),
+    Weapon(name="Swarm Sting", weapon_type="natural"),
+    Weapon(name="Barbed Spit", weapon_type="natural"),
+    Weapon(name="Venomous Barb", weapon_type="natural"),
+    Weapon(name="Spiny Lash", weapon_type="natural"),
+    Weapon(name="Jagged Talon", weapon_type="natural"),
+    Weapon(name="Vine Strike", weapon_type="natural"),
+    Weapon(name="Mud Fist", weapon_type="natural"),
+    Weapon(name="Acid Splash", weapon_type="natural"),
+    Weapon(name="Infernal Spit", weapon_type="natural"),
+    Weapon(name="Mucus Spray", weapon_type="natural"),
+    Weapon(name="Shadow Bite", weapon_type="natural"),
+    Weapon(name="Toxic Breath", weapon_type="natural"),
+    Weapon(name="Stinger Strike", weapon_type="natural"),
+    Weapon(name="Fungal Slap", weapon_type="natural"),
+    Weapon(name="Rock Crush", weapon_type="natural"),
+    Weapon(name="Blighted Touch", weapon_type="natural"),
+    Weapon(name="Spore Burst", weapon_type="natural"),
+    Weapon(name="Iron Fangs", weapon_type="natural"),
+    Weapon(name="Talon Swipe", weapon_type="natural"),
+    Weapon(name="Infected Bite", weapon_type="natural"),
+    Weapon(name="Chitin Bash", weapon_type="natural"),
+    Weapon(name="Mire Lash", weapon_type="natural"),
+    Weapon(name="Shambling Slam", weapon_type="natural"),
+    Weapon(name="Screech", weapon_type="natural"),
+    Weapon(name="Blinding Spit", weapon_type="natural"),
+    Weapon(name="Toxic Needle", weapon_type="natural"),
+    Weapon(name="Ichor Strike", weapon_type="natural"),
+    Weapon(name="Jagged Spine", weapon_type="natural"),
+    Weapon(name="Poison Talons", weapon_type="natural"),
+    Weapon(name="Mud Tendril", weapon_type="natural"),
+    Weapon(name="Bloodied Maw", weapon_type="natural"),
+    Weapon(name="Lacerating Claws", weapon_type="natural"),
+    Weapon(name="Crushing Pincer", weapon_type="natural"),
+    Weapon(name="Writhing Lash", weapon_type="natural"),
+    Weapon(name="Barbed Tongue", weapon_type="natural"),
+    Weapon(name="Battering Horns", weapon_type="natural"),
+    Weapon(name="Gooey Strike", weapon_type="natural"),
+    Weapon(name="Iron Bark", weapon_type="natural"),
+    Weapon(name="Jagged Maw", weapon_type="natural"),
+    Weapon(name="Piercing Thorn", weapon_type="natural"),
+    Weapon(name="Bone Bite", weapon_type="natural"),
+    Weapon(name="Entangling Roots", weapon_type="natural"),
+    Weapon(name="Scaly Slam", weapon_type="natural"),
+    Weapon(name="Blistering Spit", weapon_type="natural"),
+    Weapon(name="Crushing Hoof", weapon_type="natural"),
+    Weapon(name="Brimstone Peck", weapon_type="natural"),
+    Weapon(name="Shadow Swipe", weapon_type="natural"),
+    Weapon(name="Gnarled Claw", weapon_type="natural"),
+    Weapon(name="Putrid Breath", weapon_type="natural"),
+    Weapon(name="Crawling Claw", weapon_type="natural"),
+    Weapon(name="Rending Bite", weapon_type="natural"),
+    Weapon(name="Needle Spine", weapon_type="natural"),
+    Weapon(name="Warped Claw", weapon_type="natural"),
+    Weapon(name="Acid Bloom", weapon_type="natural"),
+    Weapon(name="Thorny Embrace", weapon_type="natural"),
+    Weapon(name="Thick Spittle", weapon_type="natural"),
+    Weapon(name="Dark Maw", weapon_type="natural"),
+    Weapon(name="Twisted Vine", weapon_type="natural"),
+    Weapon(name="Venom Lash", weapon_type="natural"),
+    Weapon(name="Spike Shield", weapon_type="natural"),
+    Weapon(name="Scalding Spray", weapon_type="natural"),
+    Weapon(name="Flaming Tail", weapon_type="natural"),
+    Weapon(name="Boulder Throw", weapon_type="natural"),
+    Weapon(name="Rotten Bite", weapon_type="natural"),
+    Weapon(name="Serrated Stinger", weapon_type="natural"),
+    Weapon(name="Tusk Gore", weapon_type="natural"),
+    Weapon(name="Blight Claw", weapon_type="natural"),
+    Weapon(name="Briar Thorns", weapon_type="natural"),
+    Weapon(name="Warped Branch", weapon_type="natural"),
+    Weapon(name="Leeching Maw", weapon_type="natural"),
+    Weapon(name="Sonic Screech", weapon_type="natural"),
+    Weapon(name="Tremor Slam", weapon_type="natural"),
+    Weapon(name="Scorched Peck", weapon_type="natural"),
+    Weapon(name="Tethered Spike", weapon_type="natural"),
+    Weapon(name="Infectious Claws", weapon_type="natural")
+]
+
+low_tier_weapons = low_tier_weapons_norm + low_tier_weapons_nat
+
+# Mid-tier weapons (natural and normal)
+mid_tier_weapons_norm = [
+    Weapon(name="Iron Sword", weapon_type="sharp"),
+    Weapon(name="Scimitar", weapon_type="sharp"),
+    Weapon(name="Mace", weapon_type="blunt"),
+    Weapon(name="Crossbow", weapon_type="ranged"),
+    Weapon(name="Quarterstaff", weapon_type="staff"),
+    Weapon(name="Morningstar", weapon_type="blunt"),
+    Weapon(name="Battle Axe", weapon_type="sharp"),
+    Weapon(name="Javelin", weapon_type="ranged"),
+    Weapon(name="Light Crossbow", weapon_type="ranged"),
+    Weapon(name="Flail", weapon_type="flail"),
+    Weapon(name="Steel Rapier", weapon_type="sharp"),
+    Weapon(name="Steel Warhammer", weapon_type="blunt"),
+    Weapon(name="Longbow", weapon_type="ranged"),
+    Weapon(name="Reinforced Club", weapon_type="blunt"),
+    Weapon(name="Iron Trident", weapon_type="sharp"),
+    Weapon(name="Steel Dagger", weapon_type="sharp"),
+    Weapon(name="Knight's Mace", weapon_type="blunt"),
+    Weapon(name="Poleaxe", weapon_type="sharp"),
+    Weapon(name="Throwing Axe", weapon_type="ranged"),
+    Weapon(name="Arbalest", weapon_type="ranged"),
+    Weapon(name="Steel Pike", weapon_type="sharp"),
+    Weapon(name="Bastard Sword", weapon_type="sharp"),
+    Weapon(name="Heavy Mace", weapon_type="blunt"),
+    Weapon(name="Saber", weapon_type="sharp"),
+    Weapon(name="Halberd", weapon_type="sharp"),
+    Weapon(name="Falchion", weapon_type="sharp"),
+    Weapon(name="Heavy Sling", weapon_type="ranged"),
+    Weapon(name="Spiked Flail", weapon_type="flail"),
+    Weapon(name="Steel Morningstar", weapon_type="blunt"),
+    Weapon(name="Short Pike", weapon_type="sharp"),
+    Weapon(name="Broad Axe", weapon_type="sharp"),
+    Weapon(name="Steel Javelin", weapon_type="ranged"),
+    Weapon(name="Executioner's Axe", weapon_type="sharp"),
+    Weapon(name="Chain Whip", weapon_type="whip"),
+    Weapon(name="Flanged Mace", weapon_type="blunt"),
+    Weapon(name="Glaive", weapon_type="sharp"),
+    Weapon(name="Reinforced Staff", weapon_type="staff"),
+    Weapon(name="Iron Hook", weapon_type="hook"),
+    Weapon(name="War Pick", weapon_type="sharp"),
+    Weapon(name="Double-headed Axe", weapon_type="sharp"),
+    Weapon(name="Steel Club", weapon_type="blunt"),
+    Weapon(name="Double Flail", weapon_type="flail"),
+    Weapon(name="Chained Morningstar", weapon_type="blunt"),
+    Weapon(name="Battle Scythe", weapon_type="scythe"),
+    Weapon(name="Mounted Lance", weapon_type="sharp"),
+    Weapon(name="Stiletto", weapon_type="sharp"),
+    Weapon(name="Heavy Crossbow", weapon_type="ranged"),
+    Weapon(name="Bladed Staff", weapon_type="staff"),
+    Weapon(name="Knight's Flail", weapon_type="flail"),
+    Weapon(name="Duelist's Rapier", weapon_type="sharp"),
+    Weapon(name="Weighted Net", weapon_type="ranged"),
+    Weapon(name="Hooked Polearm", weapon_type="hook"),
+    Weapon(name="Iron Talwar", weapon_type="sharp"),
+    Weapon(name="Military Fork", weapon_type="sharp"),
+    Weapon(name="Trident Spear", weapon_type="sharp"),
+    Weapon(name="Siege Crossbow", weapon_type="ranged"),
+    Weapon(name="Steel Short Sword", weapon_type="sharp"),
+    Weapon(name="Footman’s Flail", weapon_type="flail"),
+    Weapon(name="War Mattock", weapon_type="sharp"),
+    Weapon(name="Heavy Hammer", weapon_type="blunt"),
+    Weapon(name="Parrying Dagger", weapon_type="sharp"),
+    Weapon(name="Ranseur", weapon_type="sharp"),
+    Weapon(name="Bidenhander", weapon_type="sharp"),
+    Weapon(name="Steel Maul", weapon_type="blunt"),
+    Weapon(name="Stinger Whip", weapon_type="whip"),
+    Weapon(name="Repeating Crossbow", weapon_type="ranged"),
+    Weapon(name="Iron Halberd", weapon_type="sharp"),
+    Weapon(name="Spiked Mace", weapon_type="blunt"),
+    Weapon(name="Slashing Saber", weapon_type="sharp"),
+    Weapon(name="Knight's Broadsword", weapon_type="sharp"),
+    Weapon(name="Crusader’s Sword", weapon_type="sharp"),
+    Weapon(name="Steel Polearm", weapon_type="sharp"),
+    Weapon(name="Plated Knuckles", weapon_type="blunt"),
+    Weapon(name="Bladed Glaive", weapon_type="sharp"),
+    Weapon(name="Two-Pronged Fork", weapon_type="sharp"),
+    Weapon(name="Battle Fork", weapon_type="sharp"),
+    Weapon(name="Fortress Crossbow", weapon_type="ranged"),
+    Weapon(name="Iron Studded Mace", weapon_type="blunt"),
+    Weapon(name="Double-ended Spear", weapon_type="sharp"),
+    Weapon(name="Grapple Hook", weapon_type="hook"),
+    Weapon(name="Mercenary Axe", weapon_type="sharp"),
+    Weapon(name="Chained Hook", weapon_type="hook"),
+    Weapon(name="Steel Whip", weapon_type="whip"),
+    Weapon(name="Enforcer's Cudgel", weapon_type="blunt"),
+    Weapon(name="Long Scythe", weapon_type="scythe"),
+    Weapon(name="Heavy Pickaxe", weapon_type="sharp"),
+    Weapon(name="Dragonbone Staff", weapon_type="staff"),
+    Weapon(name="Iron Bident", weapon_type="sharp"),
+    Weapon(name="Two-Handed Mace", weapon_type="blunt"),
+    Weapon(name="Weighted Chain", weapon_type="flail"),
+    Weapon(name="Pike Spear", weapon_type="sharp"),
+    Weapon(name="Trapper’s Hook", weapon_type="hook"),
+    Weapon(name="Tower Crossbow", weapon_type="ranged")
+]
+
+mid_tier_weapons_nat = [
+    Weapon(name="Tentacles", weapon_type="natural"),
+    Weapon(name="Claws", weapon_type="natural"),
+    Weapon(name="Stinger", weapon_type="natural"),
+    Weapon(name="Horns", weapon_type="natural"),
+    Weapon(name="Pincer", weapon_type="natural"),
+    Weapon(name="Eldritch Tendril", weapon_type="natural"),
+    Weapon(name="Shadow Bite", weapon_type="natural"),
+    Weapon(name="Crawling Chaos Spikes", weapon_type="natural"),
+    Weapon(name="Cursed Vine", weapon_type="natural"),
+    Weapon(name="Ravenous Maw", weapon_type="natural"),
+    Weapon(name="Dark Flames", weapon_type="natural"),
+    Weapon(name="Obsidian Claw", weapon_type="natural"),
+    Weapon(name="Blood Tentacle", weapon_type="natural"),
+    Weapon(name="Poisonous Mandibles", weapon_type="natural"),
+    Weapon(name="Venomous Lash", weapon_type="natural"),
+    Weapon(name="Frosted Talons", weapon_type="natural"),
+    Weapon(name="Infernal Bite", weapon_type="natural"),
+    Weapon(name="Twisting Roots", weapon_type="natural"),
+    Weapon(name="Shadow Spike", weapon_type="natural"),
+    Weapon(name="Abyssal Maw", weapon_type="natural"),
+    Weapon(name="Thorned Tail", weapon_type="natural"),
+    Weapon(name="Fire Spit", weapon_type="natural"),
+    Weapon(name="Toxic Fangs", weapon_type="natural"),
+    Weapon(name="Webbed Strike", weapon_type="natural"),
+    Weapon(name="Warped Horns", weapon_type="natural"),
+    Weapon(name="Barbed Tentacle", weapon_type="natural"),
+    Weapon(name="Ghostly Swipe", weapon_type="natural"),
+    Weapon(name="Serrated Jaw", weapon_type="natural"),
+    Weapon(name="Grasping Vine", weapon_type="natural"),
+    Weapon(name="Dark Gaze", weapon_type="natural"),
+    Weapon(name="Leviathan Strike", weapon_type="natural"),
+    Weapon(name="Pestilent Vomit", weapon_type="natural"),
+    Weapon(name="Chilling Breath", weapon_type="natural"),
+    Weapon(name="Necrotic Claws", weapon_type="natural"),
+    Weapon(name="Miasmic Touch", weapon_type="natural"),
+    Weapon(name="Wailing Screech", weapon_type="natural"),
+    Weapon(name="Pustulent Blight", weapon_type="natural"),
+    Weapon(name="Infernal Stomp", weapon_type="natural"),
+    Weapon(name="Venomous Thorns", weapon_type="natural"),
+    Weapon(name="Entangling Tentacle", weapon_type="natural"),
+    Weapon(name="Wyrm Breath", weapon_type="natural"),
+    Weapon(name="Wretched Maw", weapon_type="natural"),
+    Weapon(name="Razor Barb", weapon_type="natural"),
+    Weapon(name="Ichor Lash", weapon_type="natural"),
+    Weapon(name="Haunting Claw", weapon_type="natural"),
+    Weapon(name="Crimson Tendril", weapon_type="natural"),
+    Weapon(name="Grim Claw", weapon_type="natural"),
+    Weapon(name="Shadowy Lash", weapon_type="natural"),
+    Weapon(name="Gore Bite", weapon_type="natural"),
+    Weapon(name="Abyssal Spikes", weapon_type="natural"),
+    Weapon(name="Iron Bark Lash", weapon_type="natural"),
+    Weapon(name="Serrated Pincer", weapon_type="natural"),
+    Weapon(name="Wormtail Lash", weapon_type="natural"),
+    Weapon(name="Unholy Slash", weapon_type="natural"),
+    Weapon(name="Hellish Gaze", weapon_type="natural"),
+    Weapon(name="Molten Bite", weapon_type="natural"),
+    Weapon(name="Putrid Talons", weapon_type="natural"),
+    Weapon(name="Blistering Claw", weapon_type="natural"),
+    Weapon(name="Severing Spike", weapon_type="natural"),
+    Weapon(name="Spectral Pincer", weapon_type="natural"),
+    Weapon(name="Death Touch", weapon_type="natural"),
+    Weapon(name="Corrupted Whip", weapon_type="natural"),
+    Weapon(name="Vile Claws", weapon_type="natural"),
+    Weapon(name="Plague Touch", weapon_type="natural"),
+    Weapon(name="Abyss Fang", weapon_type="natural"),
+    Weapon(name="Necrotic Tendril", weapon_type="natural"),
+    Weapon(name="Twisting Thorn", weapon_type="natural"),
+    Weapon(name="Blighted Hoof", weapon_type="natural"),
+    Weapon(name="Cursed Claw", weapon_type="natural"),
+    Weapon(name="Molten Tentacle", weapon_type="natural"),
+    Weapon(name="Wraith Claw", weapon_type="natural"),
+    Weapon(name="Toxic Bloom", weapon_type="natural"),
+    Weapon(name="Gore Lash", weapon_type="natural"),
+    Weapon(name="Rending Fangs", weapon_type="natural"),
+    Weapon(name="Horrific Maw", weapon_type="natural"),
+    Weapon(name="Chill Grip", weapon_type="natural"),
+    Weapon(name="Warped Stinger", weapon_type="natural"),
+    Weapon(name="Withering Vine", weapon_type="natural"),
+    Weapon(name="Cavernous Roar", weapon_type="natural"),
+    Weapon(name="Hellish Claw", weapon_type="natural"),
+    Weapon(name="Magma Breath", weapon_type="natural"),
+    Weapon(name="Grasp of Shadows", weapon_type="natural"),
+    Weapon(name="Spectral Scythe", weapon_type="natural"),
+    Weapon(name="Venom Burst", weapon_type="natural"),
+    Weapon(name="Unholy Maw", weapon_type="natural"),
+    Weapon(name="Corrosive Claw", weapon_type="natural"),
+    Weapon(name="Rotting Grasp", weapon_type="natural"),
+    Weapon(name="Dark Surge", weapon_type="natural")
+]
+
+mid_tier_weapons = mid_tier_weapons_norm + mid_tier_weapons_nat
+
+# High-tier weapons (natural and normal)
+high_tier_weapons_norm = [
+    Weapon(name="Long Sword", weapon_type="sharp"),
+    Weapon(name="Warhammer", weapon_type="blunt"),
+    Weapon(name="Great Hammer", weapon_type="blunt"),
+    Weapon(name="Rapier", weapon_type="sharp"),
+    Weapon(name="Halberd", weapon_type="sharp"),
+    Weapon(name="Heavy Crossbow", weapon_type="ranged"),
+    Weapon(name="Double Axe", weapon_type="sharp"),
+    Weapon(name="Maul", weapon_type="blunt"),
+    Weapon(name="Trident", weapon_type="sharp"),
+    Weapon(name="Spiked Chain", weapon_type="chain"),
+    Weapon(name="Executioner's Sword", weapon_type="sharp"),
+    Weapon(name="Flaming Mace", weapon_type="blunt"),
+    Weapon(name="Dragonbone Bow", weapon_type="ranged"),
+    Weapon(name="Great Scythe", weapon_type="scythe"),
+    Weapon(name="Giant's Club", weapon_type="blunt"),
+    Weapon(name="Knight's Halberd", weapon_type="sharp"),
+    Weapon(name="Voulge", weapon_type="sharp"),
+    Weapon(name="Cross Halberd", weapon_type="sharp"),
+    Weapon(name="Battle Flail", weapon_type="flail"),
+    Weapon(name="Dwarven Maul", weapon_type="blunt"),
+    Weapon(name="Double-ended Axe", weapon_type="sharp"),
+    Weapon(name="Dragonfang Sword", weapon_type="sharp"),
+    Weapon(name="Meteor Hammer", weapon_type="flail"),
+    Weapon(name="Blacksteel Mace", weapon_type="blunt"),
+    Weapon(name="Celestial Bow", weapon_type="ranged"),
+    Weapon(name="Obsidian Trident", weapon_type="sharp"),
+    Weapon(name="Holy Staff", weapon_type="staff"),
+    Weapon(name="Doomhammer", weapon_type="blunt"),
+    Weapon(name="Inferno Crossbow", weapon_type="ranged"),
+    Weapon(name="Paladin's Flail", weapon_type="flail"),
+    Weapon(name="Demonbane Rapier", weapon_type="sharp"),
+    Weapon(name="Crescent Pike", weapon_type="sharp"),
+    Weapon(name="Rune Axe", weapon_type="sharp"),
+    Weapon(name="Valiant Spear", weapon_type="sharp"),
+    Weapon(name="Storm Bringer", weapon_type="chain"),
+    Weapon(name="Thunder Maul", weapon_type="blunt"),
+    Weapon(name="Bloodletter Scythe", weapon_type="scythe"),
+    Weapon(name="Dragonslayer Sword", weapon_type="sharp"),
+    Weapon(name="Colossus Hammer", weapon_type="blunt"),
+    Weapon(name="Ethereal Blade", weapon_type="sharp"),
+    Weapon(name="Phoenix Bow", weapon_type="ranged"),
+    Weapon(name="Storm Pike", weapon_type="sharp"),
+    Weapon(name="Hellfire Flail", weapon_type="flail"),
+    Weapon(name="Judgement Mace", weapon_type="blunt"),
+    Weapon(name="War Trident", weapon_type="sharp"),
+    Weapon(name="Frost Halberd", weapon_type="sharp"),
+    Weapon(name="Gilded Greatsword", weapon_type="sharp"),
+    Weapon(name="Silver Battle Axe", weapon_type="sharp"),
+    Weapon(name="Moonlight Staff", weapon_type="staff"),
+    Weapon(name="Twinblade", weapon_type="sharp"),
+    Weapon(name="Harpoon Crossbow", weapon_type="ranged"),
+    Weapon(name="Void Pike", weapon_type="sharp"),
+    Weapon(name="Royal Glaive", weapon_type="sharp"),
+    Weapon(name="Reaper's Scythe", weapon_type="scythe"),
+    Weapon(name="Soul Crusher", weapon_type="blunt"),
+    Weapon(name="Dragonfire Crossbow", weapon_type="ranged"),
+    Weapon(name="Golden Warhammer", weapon_type="blunt"),
+    Weapon(name="Sunblade", weapon_type="sharp"),
+    Weapon(name="Warlord's Maul", weapon_type="blunt"),
+    Weapon(name="Obsidian Flail", weapon_type="flail"),
+    Weapon(name="Lightbringer Pike", weapon_type="sharp"),
+    Weapon(name="Dread Axe", weapon_type="sharp"),
+    Weapon(name="Mythril Scythe", weapon_type="scythe"),
+    Weapon(name="Executioner's Maul", weapon_type="blunt"),
+    Weapon(name="Stormcaller Staff", weapon_type="staff"),
+    Weapon(name="Raven's Talon", weapon_type="sharp"),
+    Weapon(name="Hellion Crossbow", weapon_type="ranged"),
+    Weapon(name="Twin Fang", weapon_type="sharp"),
+    Weapon(name="Doom Glaive", weapon_type="sharp"),
+    Weapon(name="Thunderstrike Hammer", weapon_type="blunt"),
+    Weapon(name="Solar Spear", weapon_type="sharp"),
+    Weapon(name="Infernal Chain", weapon_type="chain"),
+    Weapon(name="Crusader's Flail", weapon_type="flail"),
+    Weapon(name="Dragon Hunter Bow", weapon_type="ranged"),
+    Weapon(name="Knight's Reaver", weapon_type="sharp"),
+    Weapon(name="Skullsplitter", weapon_type="blunt"),
+    Weapon(name="Blood Reaver", weapon_type="sharp"),
+    Weapon(name="War Scythe", weapon_type="scythe"),
+    Weapon(name="Frostbound Hammer", weapon_type="blunt"),
+    Weapon(name="Doom Lance", weapon_type="sharp"),
+    Weapon(name="Darkflame Trident", weapon_type="sharp"),
+    Weapon(name="Judicator's Staff", weapon_type="staff"),
+    Weapon(name="Phoenix Claw", weapon_type="sharp"),
+    Weapon(name="Serpent's Fang", weapon_type="sharp"),
+    Weapon(name="Guardian's Halberd", weapon_type="sharp"),
+    Weapon(name="Infernal Maul", weapon_type="blunt"),
+    Weapon(name="Tempest Bow", weapon_type="ranged"),
+    Weapon(name="Spiked Glaive", weapon_type="sharp"),
+    Weapon(name="Sacred Morningstar", weapon_type="blunt"),
+    Weapon(name="Necrotic Chain", weapon_type="chain"),
+    Weapon(name="Dragon's Wrath", weapon_type="sharp"),
+    Weapon(name="Righteous Pike", weapon_type="sharp"),
+    Weapon(name="Titan Hammer", weapon_type="blunt"),
+    Weapon(name="Celestial Staff", weapon_type="staff")
+]
+
+high_tier_weapons_nat = [
+    Weapon(name="Acid Spit", weapon_type="natural"),
+    Weapon(name="Tail Slam", weapon_type="natural"),
+    Weapon(name="Fire Breath", weapon_type="natural"),
+    Weapon(name="Necrotic Touch", weapon_type="natural"),
+    Weapon(name="Shadow Tentacle", weapon_type="natural"),
+    Weapon(name="Eldritch Claw", weapon_type="natural"),
+    Weapon(name="Void Strike", weapon_type="natural"),
+    Weapon(name="Chaos Bite", weapon_type="natural"),
+    Weapon(name="Spectral Fang", weapon_type="natural"),
+    Weapon(name="Abyssal Spines", weapon_type="natural"),
+    Weapon(name="Nether Lash", weapon_type="natural"),
+    Weapon(name="Rift Claw", weapon_type="natural"),
+    Weapon(name="Dark Surge", weapon_type="natural"),
+    Weapon(name="Wyrm Strike", weapon_type="natural"),
+    Weapon(name="Hellfire Breath", weapon_type="natural"),
+    Weapon(name="Cursed Spike", weapon_type="natural"),
+    Weapon(name="Deathly Roar", weapon_type="natural"),
+    Weapon(name="Gloom Grasp", weapon_type="natural"),
+    Weapon(name="Putrid Claw", weapon_type="natural"),
+    Weapon(name="Infernal Maw", weapon_type="natural"),
+    Weapon(name="Spectral Claws", weapon_type="natural"),
+    Weapon(name="Abyssal Maw", weapon_type="natural"),
+    Weapon(name="Toxic Sludge", weapon_type="natural"),
+    Weapon(name="Ethereal Screech", weapon_type="natural"),
+    Weapon(name="Chaos Bolt", weapon_type="natural"),
+    Weapon(name="Wraith Touch", weapon_type="natural"),
+    Weapon(name="Corrupted Bite", weapon_type="natural"),
+    Weapon(name="Dark Tendrils", weapon_type="natural"),
+    Weapon(name="Soul Rend", weapon_type="natural"),
+    Weapon(name="Flesh Ripper", weapon_type="natural"),
+    Weapon(name="Fiery Gaze", weapon_type="natural"),
+    Weapon(name="Black Flame", weapon_type="natural"),
+    Weapon(name="Bane Touch", weapon_type="natural"),
+    Weapon(name="Death Lash", weapon_type="natural"),
+    Weapon(name="Nightmare Breath", weapon_type="natural"),
+    Weapon(name="Doom Spike", weapon_type="natural"),
+    Weapon(name="Venomous Barb", weapon_type="natural"),
+    Weapon(name="Blight Fang", weapon_type="natural"),
+    Weapon(name="Hellish Claw", weapon_type="natural"),
+    Weapon(name="Thunderous Roar", weapon_type="natural"),
+    Weapon(name="Oblivion Claw", weapon_type="natural"),
+    Weapon(name="Darkness Lash", weapon_type="natural"),
+    Weapon(name="Crushing Gaze", weapon_type="natural"),
+    Weapon(name="Soul Crusher", weapon_type="natural"),
+    Weapon(name="Vile Touch", weapon_type="natural"),
+    Weapon(name="Fell Fang", weapon_type="natural"),
+    Weapon(name="Venom Strike", weapon_type="natural"),
+    Weapon(name="Infernal Claws", weapon_type="natural"),
+    Weapon(name="Dreadful Spines", weapon_type="natural"),
+    Weapon(name="Hellhound Bite", weapon_type="natural"),
+    Weapon(name="Plague Breath", weapon_type="natural"),
+    Weapon(name="Spectral Lash", weapon_type="natural"),
+    Weapon(name="Scalding Flame", weapon_type="natural"),
+    Weapon(name="Dark Maul", weapon_type="natural"),
+    Weapon(name="Cursed Flame", weapon_type="natural"),
+    Weapon(name="Unholy Claws", weapon_type="natural"),
+    Weapon(name="Warped Spike", weapon_type="natural"),
+    Weapon(name="Chilling Gaze", weapon_type="natural"),
+    Weapon(name="Blighted Breath", weapon_type="natural"),
+    Weapon(name="Warped Fang", weapon_type="natural"),
+    Weapon(name="Toxic Grasp", weapon_type="natural"),
+    Weapon(name="Infernal Slash", weapon_type="natural"),
+    Weapon(name="Demonic Roar", weapon_type="natural"),
+    Weapon(name="Rift Bite", weapon_type="natural"),
+    Weapon(name="Cursed Touch", weapon_type="natural"),
+    Weapon(name="Nether Claw", weapon_type="natural"),
+    Weapon(name="Wraith's Grasp", weapon_type="natural"),
+    Weapon(name="Obsidian Spines", weapon_type="natural"),
+    Weapon(name="Hellish Maw", weapon_type="natural"),
+    Weapon(name="Blazing Bite", weapon_type="natural"),
+    Weapon(name="Necrotic Screech", weapon_type="natural"),
+    Weapon(name="Shadow Spike", weapon_type="natural"),
+    Weapon(name="Spectral Fang", weapon_type="natural"),
+    Weapon(name="Chilling Bite", weapon_type="natural"),
+    Weapon(name="Darkfire Breath", weapon_type="natural"),
+    Weapon(name="Warped Maul", weapon_type="natural"),
+    Weapon(name="Gore Claw", weapon_type="natural"),
+    Weapon(name="Crushing Roar", weapon_type="natural"),
+    Weapon(name="Hellfire Claw", weapon_type="natural"),
+    Weapon(name="Poison Spit", weapon_type="natural"),
+    Weapon(name="Blackened Fang", weapon_type="natural"),
+    Weapon(name="Void Touch", weapon_type="natural"),
+    Weapon(name="Demonic Gaze", weapon_type="natural"),
+    Weapon(name="Putrid Fang", weapon_type="natural"),
+    Weapon(name="Eldritch Spike", weapon_type="natural"),
+    Weapon(name="Terror Claws", weapon_type="natural"),
+    Weapon(name="Soulbite", weapon_type="natural"),
+    Weapon(name="Twisted Spines", weapon_type="natural"),
+    Weapon(name="Warped Breath", weapon_type="natural")
+]
+
+high_tier_weapons = high_tier_weapons_norm + high_tier_weapons_nat
+
+        ->item: 
+
+
+
+class Item:
+    """Base class for all items."""
+
+    def __init__(self, name: str, description: str, tier: str, value: int):
+        self.name = name
+        self.description = description
+        self.tier = tier
+        self.value = value
+
+    def use(self, target):
+        """Defines what happens when the item is used."""
+        pass
+
+class Cure(Item):
+    """Cure items that heal the target."""
+
+    heal_percentages = {
+        "small": 15,
+        "mids": 30,
+        "midh": 50,
+        "large": 70,
+        "superior": 100
+    }
+
+    def __init__(self, name: str, description: str, tier: str, value: int):
+        super().__init__(name, description, tier, value)
+        self.heal_percent = self.heal_percentages.get(tier, 0)
+
+    def use(self, target):
+        """Heals the target by a percentage of their max health."""
+        heal_amount = int(target.health_max * self.heal_percent / 100)
+        target.health = min(target.health + heal_amount, target.health_max)
+        target.health_bar.update()
+        print(f"{target.name} used {self.name} and healed {heal_amount} HP!")
+
+
+class Throwable(Item):
+    """Throwable items that deal damage to the enemy."""
+
+    def __init__(self, name: str, description: str, tier: str, value: int, damage: int):
+        super().__init__(name, description, tier, value)
+        self.damage = damage
+
+    def use(self, target):
+        """Deals damage to the target."""
+        target.take_damage(self.damage)
+        print(f"{target.name} took {self.damage} damage from {self.name}!")
+
+
+def generate_cure(tier: str) -> Cure:
+    """Generates a cure item based on the tier."""
+    cure_names = {
+        "small": "Small Health Potion",
+        "mids": "Medium Health Potion",
+        "midh": "Strong Health Potion",
+        "large": "Large Health Potion",
+        "superior": "Superior Health Potion"
+    }
+    name = cure_names.get(tier, "Unknown Potion")
+    description = f"Heals {Cure.heal_percentages.get(tier, 0)}% of max health."
+    value = {
+        "small": 10,
+        "mids": 20,
+        "midh": 35,
+        "large": 50,
+        "superior": 75
+    }.get(tier, 0)
+    return Cure(name, description, tier, value)
+
+
+def generate_throwable(tier: str) -> Throwable:
+    """Generates a throwable item based on the tier."""
+    throwable_names = {
+        "small": "Throwing Knife",
+        "mids": "Bomb",
+        "midh": "Fire Flask",
+        "large": "Poison Dart",
+        "superior": "Explosive Charge"
+    }
+    name = throwable_names.get(tier, "Unknown Throwable")
+    description = "Deals damage to an enemy."
+    damage = {
+        "small": 10,
+        "mids": 20,
+        "midh": 35,
+        "large": 50,
+        "superior": 75
+    }.get(tier, 0)
+    value = damage  # For simplicity, value equals damage
+    return Throwable(name, description, tier, value, damage)    
+
+def create_item_from_name(name):
+    """Creates an item instance based on the item name."""
+    # Map item names to generated items
+    name_to_item = {
+        # Cures
+        "Small Health Potion": generate_cure("small"),
+        "Medium Health Potion": generate_cure("mids"),
+        "Strong Health Potion": generate_cure("midh"),
+        "Large Health Potion": generate_cure("large"),
+        "Superior Health Potion": generate_cure("superior"),
+        # Throwables
+        "Throwing Knife": generate_throwable("small"),
+        "Bomb": generate_throwable("mids"),
+        "Fire Flask": generate_throwable("midh"),
+        "Poison Dart": generate_throwable("large"),
+        "Explosive Charge": generate_throwable("superior"),
+        # Add more items as needed
+    }
+    return name_to_item.get(name)
+
+        ->healthbar:
+
+# battle_system/health_bar.py
+
+import os
+
+# Enable ANSI escape sequences in terminal
+os.system("")
+
+class HealthBar:
+    """Class to represent a health bar for characters."""
+
+    symbol_remaining: str = "█"
+    symbol_lost: str = "_"
+    barrier: str = "|"
+    colors: dict = {
+        "red": "\033[91m",
+        "green": "\033[92m",
+        "yellow": "\033[93m",
+        "blue": "\033[94m",
+        "magenta": "\033[95m",
+        "cyan": "\033[96m",
+        "white": "\033[97m",
+        "default": "\033[0m"
+    }
+
+    def __init__(self, entity, length: int = 20, color: str = "default") -> None:
+        self.entity = entity
+        self.length = length
+        self.max_value = entity.health_max
+        self.current_value = entity.health
+        self.color = self.colors.get(color, self.colors["default"])
+
+    def update(self) -> None:
+        """Updates the health bar based on the entity's current health."""
+        self.current_value = self.entity.health
+
+    def draw(self) -> None:
+        """Draws the health bar in the console."""
+        # Calculate the number of filled and lost bars
+        remaining_bars = round(self.current_value / self.max_value * self.length)
+        lost_bars = self.length - remaining_bars
+
+        # Construct the health bar string
+        health_bar = (
+            f"{self.barrier}"
+            f"{self.color}"
+            f"{self.symbol_remaining * remaining_bars}"
+            f"{self.colors['default']}"
+            f"{self.symbol_lost * lost_bars}"
+            f"{self.barrier}"
+        )
+
+        # Display the health bar
+        print(f"{self.entity.name}'s HEALTH: {self.entity.health}/{self.entity.health_max}")
+        print(health_bar)
+
+    }
+    -->map_system{
+        ->main:
+
+import sys
+import os
+
+# Add the project root directory to the path to resolve module imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from map_system.map import Map
+from map_system.tiles import Tile, plains, forest, brush, mountain, water
+
+os.system("")
+
+
+def run() -> None:
+    while True:
+        game_map.display_map()
+        input("> ")
+
+if __name__ == "__main__":
+    map_w, map_h = 30, 15
+    game_map = Map(map_w, map_h)
+    run()
+
+
+        ->map:
+
+# map_system/map.py
+
+import sys
+import os
+import random
+from collections import Counter
+from random import randint
+from map_system.tiles import *
+from map_system.tiles import default
+from battle_system.enemy import generate_enemy
+
+class Map:
+    """Class to represent the game map."""
+
+    def __init__(self, width: int, height: int, seed: int = None):
+        self.width = width
+        self.height = height
+        self.seed = seed if seed is not None else random.randint(0, 1000000)
+        random.seed(self.seed)
+
+
+        self.map_data = [[default for _ in range(self.width)] for _ in range(self.height)]
+        self.enemies = []
+        self.boss_spawned = False
+        self.player_pos = (1, 1)
+        self.player_previous_tile = self.map_data[self.player_pos[0]][self.player_pos[1]]
+
+        self.create_frame()
+        self.fill_default()
+        self.generate_patches()
+        self.generate_rivers()
+        self.place_structures()
+
+    @classmethod
+    def generate_map_with_seed(cls, width: int, height: int, seed: int):
+        """Generates a map with a specific seed value."""
+        return cls(width, height, seed)
+    
+    def place_player(self, hero):
+        """Places the player on the map."""
+        x, y = self.player_pos  # Use the initialized player position
+        self.map_data[x][y] = player
+
+    def refill_tile(self, x: int, y: int):
+        # Logic to refill the tile previously occupied by the player or an enemy
+        adjacent_tiles = []
+
+        # Loop to gather adjacent tile types
+        for i in range(max(0, x - 1), min(self.height, x + 2)):
+            for j in range(max(0, y - 1), min(self.width, y + 2)):
+                if (i, j) != (x, y):  # Exclude the current position
+                    if self.map_data[i][j] is not None:
+                        adjacent_tiles.append(self.map_data[i][j])
+
+        # Find the most common adjacent tile to determine what tile should replace the player's old position
+        if adjacent_tiles:
+            tile_counts = Counter([tile.symbol_raw for tile in adjacent_tiles])
+            most_common_tile_symbol = tile_counts.most_common(1)[0][0]
+
+            # Set the tile object back based on the symbol
+            for tile in [plains, forest, mountain, brush, default]:
+                if tile.symbol_raw == most_common_tile_symbol:
+                    return tile
+
+        # If no adjacent tile or in case of error, return the default tile
+        return default
+
+    def create_frame(self):
+        """Creates a boundary frame around the map."""
+        for x in range(self.height):
+            for y in range(self.width):
+                if x == 0 or x == self.height - 1:
+                    self.map_data[x][y] = Tile("=", "\033[37m")  # Top and bottom borders
+                elif y == 0 or y == self.width - 1:
+                    self.map_data[x][y] = Tile("|", "\033[37m")  # Left and right borders
+
+    def fill_default(self):
+        """Fills the internal part of the map with default tiles."""
+        for x in range(1, self.height - 1):
+            for y in range(1, self.width - 1):
+                self.map_data[x][y] = default
+
+    def generate_patches(self):
+        """Generates biome patches on the map."""
+        biome_types = [
+            (plains, 20, 5, 15),
+            (forest, 15, 3, 12),
+            (mountain, 10, 4, 10),
+            (lake, 7, 4, 8),
+            (brush, 12, 3, 10),
+            (desert, 10, 4, 12),
+            (swamp, 8, 3, 10),
+            (snow, 5, 4, 10),
+            (hill, 10, 3, 10),
+        ]
+        for tile, num_patches, min_size, max_size in biome_types:
+            self.generate_patch(tile, num_patches, min_size, max_size)
+
+    def generate_patch(self, tile: Tile, num_patches: int, min_size: int, max_size: int):
+        """Generates individual patches of a specific biome."""
+        for _ in range(num_patches):
+            patch_size = randint(min_size, max_size)
+            x_start = randint(1, self.height - 2)
+            y_start = randint(1, self.width - 2)
+
+            for _ in range(patch_size):
+                x_new, y_new = x_start, y_start
+                for _ in range(patch_size):
+                    direction = random.choice([(0, 1), (1, 0), (0, -1), (-1, 0)])
+                    x_new = min(max(1, x_new + direction[0]), self.height - 2)
+                    y_new = min(max(1, y_new + direction[1]), self.width - 2)
+
+                    if self.map_data[x_new][y_new] == default:
+                        self.map_data[x_new][y_new] = tile
+
+    def generate_rivers(self, num_rivers=3):
+        """Generates rivers on the map."""
+        for _ in range(num_rivers):
+            # Start from a random mountain tile or edge of the map
+            x = randint(1, self.height - 2)
+            y = randint(1, self.width - 2)
+            while self.map_data[x][y] != mountain:
+                x = randint(1, self.height - 2)
+                y = randint(1, self.width - 2)
+            # Create a river path
+            length = randint(10, 20)
+            for _ in range(length):
+                self.map_data[x][y] = river
+                direction = random.choice([(0, 1), (1, 0), (0, -1), (-1, 0)])
+                x = min(max(1, x + direction[0]), self.height - 2)
+                y = min(max(1, y + direction[1]), self.width - 2)
+
+    def place_structures(self):
+        """Places structures like villages on the map."""
+        # Place 2 villages on the map
+        for _ in range(2):
+            while True:
+                x = randint(1, self.height - 2)
+                y = randint(1, self.width - 2)
+                if self.map_data[x][y] == default:
+                    # Create a unique village tile instance for each placement.
+                    self.map_data[x][y] = Tile("V", ansi_colors['green'], walkable=False, visited=False)
+                    break
+
+            # Place caves
+        for _ in range(3):
+            while True:
+                x = randint(1, self.height - 2)
+                y = randint(1, self.width - 2)
+                if self.map_data[x][y] == mountain:
+                    self.map_data[x][y] = cave
+                    break
+        # Place ruins
+        for _ in range(2):
+            while True:
+                x = randint(1, self.height - 2)
+                y = randint(1, self.width - 2)
+                if self.map_data[x][y] == plains:
+                    self.map_data[x][y] = ruins
+                    break
+
+    def display_map(self, hero=None):
+        """Displays the map along with the hero's stats."""
+        self.clear_screen()
+        print(f"Seed: {self.seed}")  # Display seed for reproducibility
+        print(f"Hero HP: {hero.health}/{hero.health_max} | Weapon: {hero.weapon.get_display_name()} (Damage: {hero.weapon.damage}) | Cash: {hero.cashpile}")
+        for row in self.map_data:
+            print("".join([tile.symbol if tile is not None else default.symbol for tile in row]))
+        # Display tile type and coordinates
+        x, y = hero.player_pos
+        tile = self.map_data[x][y]
+        tile_name = self.get_tile_name(tile)
+        print(f"\nYou are standing on {tile_name} at position ({x}, {y})")
+    
+    def clear_screen(self):
+        """Clears the console screen."""
+        os.system("cls" if os.name == "nt" else "clear")
+
+    def update_player_position(self, old_x, old_y, new_x, new_y):
+        """Updates the player's position on the map."""
+        self.map_data[old_x][old_y] = self.player_previous_tile  # Restore the tile under the player
+        # Save the underlying tile before moving the player
+        self.player_previous_tile = self.map_data[new_x][new_y]
+        self.map_data[new_x][new_y] = player
+        self.player_pos = (new_x, new_y)
+
+    def select_enemies(self, boss_defeated, cycle):
+        """Selects a list of enemies to place on the map."""
+        level_multiplier = 1 + (boss_defeated * 0.2) + (cycle * 0.2)
+        enemies_list = []
+        for _ in range(6):
+            enemy = generate_enemy("low", cycle)
+            enemy.scale_stats(level_multiplier)
+            enemies_list.append(enemy)
+        for _ in range(4):
+            enemy = generate_enemy("mid", cycle)
+            enemy.scale_stats(level_multiplier)
+            enemies_list.append(enemy)
+        for _ in range(3):
+            enemy = generate_enemy("high", cycle)
+            enemy.scale_stats(level_multiplier)
+            enemies_list.append(enemy)
+        return enemies_list
+
+    def clear_map(self):
+        """Clears the current map."""
+        self.map_data = [[default for _ in range(self.width)] for _ in range(self.height)]
+        self.create_frame()
+        self.fill_default()
+        self.generate_patches()
+        self.place_structures()
+        self.enemies = []
+        self.boss_spawned = False
+
+    def get_tile_name(self, tile: Tile) -> str:
+        """Returns a friendly name for a given tile."""
+        tile_names = {
+            plains.symbol_raw: "Plains",
+            forest.symbol_raw: "Forest",
+            brush.symbol_raw: "Brush",
+            mountain.symbol_raw: "Mountain",
+            water.symbol_raw: "Water",
+            lake.symbol_raw: "Lake",
+            desert.symbol_raw: "Desert",
+            swamp.symbol_raw: "Swamp",
+            snow.symbol_raw: "Snow",
+            hill.symbol_raw: "Hill",
+            river.symbol_raw: "River",
+            beach.symbol_raw: "Beach",
+            cave.symbol_raw: "Cave",
+            ruins.symbol_raw: "Ruins",
+            shrine.symbol_raw: "Shrine",
+            default.symbol_raw: "Plains",
+            #village.symbol_raw: "Village",
+            'v': "Visited Village",
+            'E': "Enemy",
+            'P': "Player",
+        }
+        return tile_names.get(tile.symbol_raw, "Unknown")
+
+    def is_tile_empty(self, x, y):
+        """Check if a tile is empty and suitable for enemy placement."""
+        tile = self.map_data[x][y]
+        # A tile is empty if it's walkable and not occupied by 'E' or 'P'
+        return tile.walkable and tile.symbol_raw not in ['E', 'P']
+
+    def place_enemies_on_map(self, enemies_list):
+        """Places enemies on the map."""
+        for enemy in enemies_list:
+            while True:
+                x = randint(1, self.height - 2)
+                y = randint(1, self.width - 2)
+                if self.is_tile_empty(x, y):
+                    enemy.pos = (x, y)
+                    enemy.underlying_tile = self.map_data[x][y]
+                    # Place enemy tile
+                    enemy_tile = Tile("E", ansi_colors['red'], walkable=False)
+                    self.map_data[x][y] = enemy_tile
+                    self.enemies.append(enemy)
+                    break
+
+        ->tiles:
+
+# map_system/tiles.py
+
+# map_system/tiles.py
+
+# ANSI escape sequences for colors
+ansi_colors = {
+    'reset': '\033[0m',
+    'black': '\033[30m',
+    'red': '\033[31m',
+    'green': '\033[32m',
+    'yellow': '\033[33m',
+    'blue': '\033[34m',
+    'magenta': '\033[35m',
+    'cyan': '\033[36m',
+    'white': '\033[37m',
+    'bright_black': '\033[90m',
+    'bright_red': '\033[91m',
+    'bright_green': '\033[92m',
+    'bright_yellow': '\033[93m',
+    'bright_blue': '\033[94m',
+    'bright_magenta': '\033[95m',
+    'bright_cyan': '\033[96m',
+    'bright_white': '\033[97m',
+}
+class Tile:
+    """Class to represent a map tile."""
+
+    def __init__(self, symbol: str, color: str, colored: bool = True, walkable: bool = True, visited = False):
+        self.symbol_raw = symbol
+        self.symbol = f"{color}{symbol}{ansi_colors['reset']}" if colored else symbol
+        self.walkable = walkable  # Indicates if the tile can be walked on or have enemies
+        self.visited = visited    # For tiles like villages that can be visited
+
+# Terrain tiles
+plains = Tile(";", ansi_colors['yellow'], walkable=True)
+forest = Tile("8", ansi_colors['green'], walkable=True)
+brush = Tile("^", ansi_colors['magenta'], walkable=True)
+mountain = Tile("A", ansi_colors['white'], walkable=True)   # Now walkable
+water = Tile("~", ansi_colors['blue'], walkable=False)      # Impassable terrain
+lake = Tile("§", ansi_colors['cyan'], walkable=False)       # Impassable terrain
+desert = Tile(".", ansi_colors['bright_yellow'], walkable=True)
+swamp = Tile("&", ansi_colors['bright_green'], walkable=True)
+snow = Tile("*", ansi_colors['bright_white'], walkable=True)
+hill = Tile("m", ansi_colors['bright_magenta'], walkable=True)
+river = Tile("≈", ansi_colors['bright_blue'], walkable=False)
+beach = Tile("_", ansi_colors['yellow'], walkable=True)
+cave = Tile("C", ansi_colors['bright_black'], walkable=True)
+ruins = Tile("R", ansi_colors['red'], walkable=True)
+shrine = Tile("S", ansi_colors['bright_magenta'], walkable=False)
+default = Tile("#", ansi_colors['black'], walkable=True)
+player = Tile("P", ansi_colors['white'], walkable=False)
+#village = Tile("V", ansi_colors['green'], walkable=False, visited=False)
+treasure = Tile("T", ansi_colors['yellow'], walkable=False)
+    }
+
+}

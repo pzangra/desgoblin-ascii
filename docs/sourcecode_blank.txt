@@ -1,0 +1,49 @@
+desgoblin{
+    -->game_system{
+
+
+        ->main.py:
+
+
+
+        ->menu.py:
+
+
+        ->newgameplus_helper:
+
+    }
+    -->battle_system{
+
+
+        ->main_battlesys:
+
+
+        ->battlesys:
+
+
+        ->character:
+
+
+        ->enemy:
+
+
+        ->weapon: 
+
+
+        ->item: 
+
+
+        ->skills:
+
+
+        ->healthbar:
+    }
+    -->map_system{
+        ->main:
+
+        ->map:
+
+        ->tiles:
+    }
+
+}

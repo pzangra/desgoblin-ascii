@@ -1,0 +1,552 @@
+bosses{
+    boss1{
+        name: Goblin Supreme
+        heal{
+            skill1: Goblin’s Greed, description: Steals a portion of the enemy's gold or resources, healing for a small amount.
+            skill2: Life Drain, description: Absorbs health from the enemy with each hit.
+        }
+        status{
+            skill3: Prideful Armor, description: Increases defense as the boss takes more damage.
+            skill4: Sinful Reflection, description: Reflects a portion of damage back at the attacker.
+            skill5: Eyes of the Abyss, description: Lowers enemy defense by revealing weaknesses.
+        }
+        magic{
+            skill6: Arcane Pulse, description: Unleashes a blast of eldritch energy.
+            skill7: Eldritch Beam, description: Fires a concentrated beam of dark energy.
+            skill8: Goblin’s Curse, description: Places a weakening curse on the enemy.
+        }
+        curse{
+            skill9: Shackles of Dominion, description: Binds enemies, preventing them from using skills.
+            skill10: Mark of the Abyss, description: Marks an enemy, increasing all damage taken.
+        }
+        attack{
+            skill11: Pride’s Shatter, description: Deals heavy damage to enemies with high health.
+            skill12: Chaos Strike, description: Unleashes a wild, unpredictable attack.
+            skill13: Shadow Strike, description: Strikes from the shadows, dealing double damage.
+            skill14: Shattering Screech, description: Stuns all enemies with a piercing scream.
+        }
+        summon{
+            skill15: Goblin Horde, description: Summons goblin reinforcements.
+            skill16: Echoes of Command, description: Doubles damage dealt by summoned allies.
+        }
+        control{
+            skill17: Madness Shout, description: Causes confusion, making enemies attack randomly.
+            skill18: Prideful Gaze, description: Stuns an enemy by instilling overwhelming fear.
+        }
+        buff{
+            skill19: Sinister Aura, description: Reduces the attack power of nearby enemies.
+            skill20: Battle Roar, description: Increases attack and defense of allies.
+        }
+        debuff{
+            skill21: Cursed Chains, description: Binds the player, reducing speed and mobility.
+            skill22: Weakening Gaze, description: Lowers enemy attack power.
+        }
+        counter{
+            skill23: Goblin’s Trickery, description: Decreases the accuracy of enemies.
+        }
+        special{
+            skill24: Sinister Reflection, description: Reflects damage back at attackers.
+            skill25: Eldritch Fury, description: Unleashes a powerful magic burst, damaging all enemies.
+        }
+    }
+
+    boss2{
+        name: Troll Champion Boxeur
+        heal{
+            skill1: Gluttonous Feast, description: Heals by consuming the life force of a defeated enemy.
+            skill2: Troll Blood, description: Heals the boss at the beginning of each turn.
+        }
+        status{
+            skill3: Wrathful Smash, description: A devastating blow fueled by rage.
+            skill4: Enduring Fury, description: Increases defense and regenerates health over time.
+            skill5: Brawler’s Instinct, description: Increases the chance to dodge incoming attacks.
+        }
+        attack{
+            skill6: Bonecrusher Fist, description: Reduces the target’s defense with a brutal punch.
+            skill7: Crushing Grip, description: Immobilizes an enemy, preventing movement.
+            skill8: Savage Punch, description: Has a high chance to land a critical hit.
+            skill9: Wrathful Wave, description: Sends a shockwave through the ground, damaging multiple enemies.
+        }
+        counter{
+            skill10: Frenzied Counter, description: Counters any attack with a powerful punch.
+        }
+        buff{
+            skill11: Vengeful Roar, description: Increases attack power as health decreases.
+            skill12: Battle Hardened, description: Increases resistance to physical damage.
+        }
+        debuff{
+            skill13: Maddening Roar, description: Reduces the morale of enemies, lowering their attack.
+        }
+        charge{
+            skill14: Unyielding Charge, description: Charges toward the enemy, knocking them back.
+        }
+        rage{
+            skill15: Berserk Mode, description: Increases attack speed and power for a short time.
+            skill16: Fury of the Champion, description: Unleashes a powerful multi-strike attack.
+        }
+        unbreakable{
+            skill17: Unstoppable Punch, description: A punch so strong it breaks through shields.
+            skill18: Immovable Object, description: Becomes impervious to damage for a short time.
+        }
+        drain{
+            skill19: Lust for Battle, description: Gains bonus attacks after a successful hit.
+        }
+        special{
+            skill20: Enraged Strike, description: Deals more damage as the boss’s health decreases.
+            skill21: Champion’s Might, description: Increases strength for the rest of the fight.
+        }
+        area{
+            skill22: Brutal Slam, description: Stuns the target by smashing them into the ground.
+        }
+        regeneration{
+            skill23: Troll’s Endurance, description: Increases max health after taking damage.
+            skill24: Battle Healing, description: Heals after every successful attack.
+        }
+        special{
+            skill25: Troll’s Strength, description: Deals massive damage with a single devastating punch.
+        }
+    }
+
+    boss3{
+        name: Pannocchia
+        heal{
+            skill1: Greed’s Harvest, description: Steals health and resources from the enemy.
+            skill2: Nature’s Recovery, description: Heals over time from the natural energy around.
+        }
+        status{
+            skill3: Corrupted Roots, description: Entangles enemies, reducing their movement and defense.
+            skill4: Thorned Armor, description: Increases defense while dealing damage to attackers.
+            skill5: Verdant Shield, description: Raises a shield of leaves that absorbs damage.
+        }
+        magic{
+            skill6: Entropic Bloom, description: Releases a burst of corrupted energy, damaging all enemies.
+            skill7: Sap of Corruption, description: Saps an enemy’s strength, reducing their attack power.
+            skill8: Eldritch Vines, description: Summons dark vines that constrict and damage enemies.
+        }
+        curse{
+            skill9: Sinful Spores, description: Poisons enemies over time.
+            skill10: Rooted Despair, description: Immobilizes all enemies and saps their health.
+        }
+        attack{
+            skill11: Vine Lash, description: Strikes with vines, immobilizing the enemy.
+            skill12: Forest’s Fury, description: Calls forth the wrath of nature, damaging all enemies.
+            skill13: Thorn Barrage, description: Launches a barrage of thorns at enemies.
+        }
+        summon{
+            skill14: Fungal Overgrowth, description: Summons toxic mushrooms to poison the battlefield.
+            skill15: Ancient Ent, description: Summons a massive tree creature to fight for the boss.
+        }
+        buff{
+            skill16: Verdant Greed, description: Grows stronger by absorbing the vitality of nearby enemies.
+            skill17: Barkskin, description: Hardens skin like bark, increasing defense.
+        }
+        debuff{
+            skill18: Writhing Thorns, description: A shield of thorns that damages enemies on contact.
+            skill19: Poisoned Breath, description: Weakens and poisons enemies with a toxic exhalation.
+        }
+        area{
+            skill20: Poisonous Growth, description: Poisons any enemy that comes into close range.
+        }
+        special{
+            skill21: Siphon Life, description: Drains the life force of enemies over time.
+            skill22: Fertile Greed, description: Heals more for each enemy defeated.
+        }
+        regeneration{
+            skill23: Devour Essence, description: Absorbs the essence of fallen enemies to gain health.
+        }
+        counter{
+            skill24: Eldritch Thorns, description: Reflects damage to enemies who attack the boss.
+        }
+        drain{
+            skill25: Nature’s Wrath, description: Deals extra damage to enemies of artificial or unnatural origins.
+        }
+    }
+
+    boss4{
+        name: Rat King of the Lemurs
+        heal{
+            skill1: Vermin Feast, description: Heals by consuming nearby rats.
+            skill2: Rat King's Restoration, description: Heals over time through vermin loyalty.
+        }
+        status{
+            skill3: Plague Carrier, description: Increases resistance to all status ailments.
+            skill4: Rodent Speed, description: Increases movement speed and dodge rate.
+            skill5: Vermin Cloak, description: Summons a cloak of rats, reducing incoming damage.
+        }
+        magic{
+            skill6: Pestilent Wave, description: Summons a wave of rats that carry disease to enemies.
+            skill7: Eldritch Infestation, description: Releases a horde of mutated rats to attack.
+        }
+        curse{
+            skill8: Rotting Touch, description: Afflicts the enemy with a curse that decays their health over time.
+            skill9: Sickness of the Swarm, description: Inflicts a disease that weakens enemies.
+        }
+        attack{
+            skill10: Vermin Bite, description: Deals a venomous bite that poisons the enemy.
+            skill11: Rodent Rampage, description: Charges the enemy with a savage attack.
+            skill12: Rat King's Wrath, description: Deals a flurry of blows with increased damage.
+        }
+        summon{
+            skill13: Swarm Call, description: Summons a swarm of rats to overwhelm the enemy.
+        }
+        buff{
+            skill14: Rodent Empowerment, description: Gains power for every rat present in the battle.
+        }
+        debuff{
+            skill15: Pestilence Aura, description: Lowers enemy attack by infecting them with disease.
+        }
+        area{
+            skill16: Plague Breath, description: Releases a cloud of plague that damages all nearby enemies.
+            skill17: Swarm's Fury, description: Causes a whirlwind of rats that damages all enemies.
+        }
+        special{
+            skill18: Crown of Rats, description: Increases the effectiveness of all rat-related abilities.
+            skill19: Vermin King’s Command, description: Commands rats to attack a specific target for increased damage.
+        }
+        regeneration{
+            skill20: Life from Vermin, description: Gains health whenever a summoned rat dies.
+        }
+        counter{
+            skill21: Vermin Counter, description: Every attack against the boss summons rats.
+        }
+        drain{
+            skill22: Rat’s Gluttony, description: Gains health for each enemy killed.
+        }
+        special{
+            skill23: Eldritch Vermin, description: Summons mutated rats to fight.
+            skill24: Rodent Madness, description: Causes enemies to be overwhelmed by madness.
+            skill25: Infectious Bite, description: Deals a poison attack that spreads to other enemies over time.
+        }
+    }
+
+	
+boss5{
+        name: African Turtle
+        heal{
+            skill1: Abyssal Regeneration, description: Slowly regenerates health over time.
+            skill2: Shell of Resilience, description: Heals a small portion of health when hit.
+        }
+        status{
+            skill3: Unbreakable Defense, description: Greatly increases defense for a short time.
+            skill4: Eternal Slumber, description: Inflicts sleep on the target.
+            skill5: Ocean's Will, description: Slows enemies by summoning heavy water currents.
+        }
+        magic{
+            skill6: Eldritch Wave, description: Summons an ancient wave of dark energy to crash over enemies.
+            skill7: Tide of Terror, description: A wave that both damages and frightens enemies.
+            skill8: Dark Water Curse, description: Curses the enemy, decreasing their magic resistance.
+        }
+        curse{
+            skill9: Deep Sea Curse, description: Causes blindness by summoning the ocean's darkness.
+            skill10: Drowning Shadows, description: Slowly drains life as if the enemy is drowning.
+        }
+        attack{
+            skill11: Crushing Claw, description: Strikes the enemy with immense force, breaking armor.
+            skill12: Shell Slam, description: The turtle retracts into its shell and slams into the enemy.
+            skill13: Riptide Strike, description: Hits the enemy with a powerful current, knocking them back.
+        }
+        summon{
+            skill14: Ancient Water Spirits, description: Summons water spirits to aid in battle.
+            skill15: Leviathan’s Call, description: Calls upon a giant sea creature to fight alongside the boss.
+        }
+        buff{
+            skill16: Ocean’s Endurance, description: Increases max health and resistance to magic.
+            skill17: Waveform Protection, description: Water currents protect allies, reducing damage taken.
+        }
+        debuff{
+            skill18: Saltwater Curse, description: Weakens enemy armor over time, reducing their defense.
+        }
+        area{
+            skill19: Tsunami, description: Causes a massive wave to crash into the battlefield, dealing area damage.
+            skill20: Deep Abyss, description: The battlefield is flooded, slowing enemies and reducing their attack speed.
+        }
+        special{
+            skill21: Turtle’s Wrath, description: The turtle becomes enraged, increasing its attack power dramatically.
+            skill22: Oceanic Devastation, description: Unleashes a cataclysmic wave that damages all enemies.
+        }
+        regeneration{
+            skill23: Saltwater Healing, description: Heals over time when standing in water.
+        }
+        counter{
+            skill24: Shell Counter, description: Every time the turtle is hit, it counters with a defensive strike.
+        }
+        drain{
+            skill25: Abyssal Drain, description: Drains the life force of enemies standing in water.
+        }
+    }
+
+    boss6{
+        name: Ultras Penguin
+        heal{
+            skill1: Frosty Rejuvenation, description: Heals slowly over time in cold environments.
+            skill2: Icebound Recovery, description: Freezes itself for healing and protection.
+        }
+        status{
+            skill3: Freezing Glare, description: Lowers enemy attack by inflicting cold, slowing their movements.
+            skill4: Winter's Breath, description: Slows enemies by chilling the air around them.
+            skill5: Penguin’s Pride, description: Increases defense and attack when health is below half.
+        }
+        magic{
+            skill6: Glacial Blast, description: Sends out a wave of freezing energy, damaging and freezing enemies.
+            skill7: Frost Spike, description: Launches sharp icicles at enemies.
+            skill8: Ice Cage, description: Traps enemies in a cage of ice, immobilizing them.
+        }
+        curse{
+            skill9: Eternal Winter, description: Curses enemies, causing them to take increased cold damage.
+            skill10: Frozen Shadows, description: A shadowy curse that makes enemies more vulnerable to magic.
+        }
+        attack{
+            skill11: Cold Snap, description: Strikes the enemy with a quick icy blow.
+            skill12: Icicle Barrage, description: Launches a series of icicles at enemies.
+            skill13: Blizzard Strike, description: Summons a blizzard to strike enemies with freezing winds.
+        }
+        summon{
+            skill14: Frost Elementals, description: Summons icy creatures to fight alongside the boss.
+            skill15: Snowstorm Spirit, description: Summons a spirit of the snowstorm to battle enemies.
+        }
+        buff{
+            skill16: Glacial Fortitude, description: Increases defense and reduces damage from fire-based attacks.
+            skill17: Winter’s Call, description: Enhances attack power in cold environments.
+        }
+        debuff{
+            skill18: Frostbite, description: Reduces the movement and attack speed of enemies.
+        }
+        area{
+            skill19: Polar Blast, description: Freezes all enemies in the area.
+            skill20: Ice Age, description: Covers the battlefield in ice, making it harder for enemies to move.
+        }
+        special{
+            skill21: Icebreaker, description: Deals a powerful physical attack, shattering enemy defenses.
+            skill22: Absolute Zero, description: Reduces the temperature around the boss to freezing, causing severe damage to enemies.
+        }
+        regeneration{
+            skill23: Arctic Healing, description: Heals faster in snowy or icy environments.
+        }
+        counter{
+            skill24: Frost Shield, description: Automatically counters enemies who attack with a freezing blast.
+        }
+        drain{
+            skill25: Ice Drain, description: Absorbs energy from enemies affected by frost.
+        }
+    }
+
+    boss7{
+        name: Bard Gargoyle
+        heal{
+            skill1: Song of Restoration, description: A magical melody that heals the boss over time.
+            skill2: Gargoyle’s Echo, description: Heals when hit by a magic attack.
+        }
+        status{
+            skill3: Discordant Tune, description: Confuses enemies, causing them to attack randomly.
+            skill4: Soul Requiem, description: Lowers enemy morale, reducing their attack.
+            skill5: Song of Silence, description: Prevents enemies from using magic for a few turns.
+        }
+        magic{
+            skill6: Soundwave Burst, description: Emits a sonic blast that damages all enemies.
+            skill7: Melody of Madness, description: Drives enemies insane, making them attack their allies.
+            skill8: Harmonic Beam, description: Fires a concentrated beam of sound at enemies.
+        }
+        curse{
+            skill9: Chilling Chorus, description: A haunting tune that causes enemies to flee in fear.
+            skill10: Disharmonious Melody, description: Curses enemies, lowering their defense.
+        }
+        attack{
+            skill11: Screeching Claws, description: Attacks with claws that cause high-pitched pain, disorienting enemies.
+            skill12: Sonic Slam, description: Hits the ground with a sonic boom, damaging all nearby enemies.
+            skill13: Echoing Strike, description: Each strike reverberates, dealing additional damage over time.
+        }
+        summon{
+            skill14: Symphony of Souls, description: Summons ghostly minions that attack in harmony with the boss.
+            skill15: Choir of Shadows, description: Summons dark spirits to overwhelm the enemy.
+        }
+        buff{
+            skill16: Aria of Power, description: Increases the attack power of the boss and its allies.
+            skill17: Song of Stone, description: Increases the boss's defense, making it nearly impenetrable.
+        }
+        debuff{
+            skill18: Dissonance, description: Lowers the attack and defense of all enemies with a discordant sound.
+        }
+        area{
+            skill19: Resonance Blast, description: Creates a massive soundwave that damages and deafens all enemies.
+            skill20: Melodic Tempest, description: Unleashes a storm of sound that damages all enemies in the area.
+        }
+        special{
+            skill21: Bard’s Wrath, description: Deals massive damage to enemies caught in a sonic blast.
+            skill22: Gargoyle’s Lament, description: Reduces enemy health by draining their will to fight.
+        }
+        regeneration{
+            skill23: Echo of Life, description: Restores health over time by absorbing the echoes of past battles.
+        }
+        counter{
+            skill24: Reverberating Strike, description: Each time the boss is hit, it counters with a sonic attack.
+        }
+        drain{
+            skill25: Life Echo, description: Drains health from enemies with each sonic attack.
+        }
+    }
+
+    boss8{
+        name: Mute Smigol
+        heal{
+            skill1: Silent Recovery, description: Heals by absorbing silence from the environment.
+            skill2: Siphon Silence, description: Drains silence from enemies, healing over time.
+        }
+        status{
+            skill3: Aura of Quiet, description: Reduces enemy attack power by inducing silence.
+            skill4: Deafening Silence, description: Prevents enemies from communicating, confusing their tactics.
+            skill5: Hushed Cloak, description: Increases evasion by moving silently.
+        }
+        magic{
+            skill6: Silent Pulse, description: Releases a wave of silence that disrupts magic attacks.
+            skill7: Shadow Silence, description: A silent, unseen wave of damage that hits enemies unexpectedly.
+            skill8: Void of Sound, description: Creates a vacuum of sound that disrupts enemy concentration.
+        }
+        curse{
+            skill9: Cursed Silence, description: Prevents enemies from casting spells for a set number of turns.
+            skill10: Quiet Despair, description: Instills enemies with a sense of hopelessness, lowering their defense.
+        }
+        attack{
+            skill11: Silent Slash, description: Attacks without warning, reducing enemy reaction time.
+            skill12: Mute Strike, description: Hits the enemy silently, leaving no trace of the attack.
+            skill13: Echoing Void, description: Each attack reverberates with invisible force, causing delayed damage.
+        }
+        summon{
+            skill14: Shadows of Silence, description: Summons silent assassins to fight alongside the boss.
+            skill15: Stillness Spirit, description: Calls upon a spirit of stillness to freeze enemies in place.
+        }
+        buff{
+            skill16: Cloak of Silence, description: Increases evasion and reduces the chance of being targeted.
+            skill17: Silent Strength, description: Increases attack power while remaining undetected.
+        }
+        debuff{
+            skill18: Mute Curse, description: Weakens enemy magic and reduces their ability to communicate.
+        }
+        area{
+            skill19: Silent Storm, description: Summons a storm of silence that disorients all enemies.
+            skill20: Hush of Death, description: Spreads silence that slowly drains life from all enemies.
+        }
+        special{
+            skill21: Silent Fury, description: Attacks with extreme precision, dealing critical damage.
+            skill22: Soundless Strike, description: Deals a devastating blow that goes unnoticed until it’s too late.
+        }
+        regeneration{
+            skill23: Lifesap Silence, description: Gains health whenever silence is present in the environment.
+        }
+        counter{
+            skill24: Echoes of Silence, description: Each attack against the boss is met with a silent counterattack.
+        }
+        drain{
+            skill25: Void Drain, description: Absorbs silence from the area to regain health and energy.
+        }
+    }
+
+    boss9{
+        name: Sexy Fox
+        heal{
+            skill1: Charm Heal, description: Heals by charming others into providing energy.
+            skill2: Alluring Recovery, description: Gains health by absorbing admiration from enemies.
+        }
+        status{
+            skill3: Mesmerize, description: Charms enemies, lowering their attack power.
+            skill4: Bewitching Gaze, description: Confuses enemies, making them attack their allies.
+            skill5: Fox's Cunning, description: Increases evasion and magic resistance temporarily.
+        }
+        magic{
+            skill6: Seductive Flame, description: Summons a magical fire that both damages and charms the enemy.
+            skill7: Illusion Dance, description: Creates illusions to confuse and damage enemies.
+            skill8: Enchanting Spark, description: Sends out a spark of magic that charms and weakens enemies.
+        }
+        curse{
+            skill9: Love’s Curse, description: Curses enemies with infatuation, lowering their defense.
+            skill10: Allure of Madness, description: Causes enemies to fall into madness due to overwhelming desire.
+        }
+        attack{
+            skill11: Fox Claw, description: Strikes with sharp claws, leaving a lingering charm effect.
+            skill12: Seductive Bite, description: Bites the enemy, charming them and reducing their defense.
+            skill13: Enchanting Strike, description: A magical attack that deals damage and mesmerizes the enemy.
+        }
+        summon{
+            skill14: Charming Illusions, description: Summons illusions to fight for the boss.
+            skill15: Spirit of Desire, description: Calls upon a spirit of desire to weaken enemies.
+        }
+        buff{
+            skill16: Allure of Strength, description: Increases attack power by drawing on the admiration of enemies.
+            skill17: Seductive Shield, description: Protects the boss with a barrier of charm.
+        }
+        debuff{
+            skill18: Fox’s Temptation, description: Lowers enemy defense by making them desire the boss.
+        }
+        area{
+            skill19: Enchanted Mist, description: Fills the area with a mist that charms and weakens enemies.
+            skill20: Bewildering Beauty, description: A charm that affects all enemies, reducing their will to fight.
+        }
+        special{
+            skill21: Fox’s Wrath, description: Unleashes a powerful attack that charms and devastates enemies.
+            skill22: Charm of the Fox, description: Increases the boss’s charm powers for a short period.
+        }
+        regeneration{
+            skill23: Allure of Life, description: Gains health by absorbing the life force of charmed enemies.
+        }
+        counter{
+            skill24: Charming Counter, description: Each time the boss is attacked, it charms the attacker.
+        }
+        drain{
+            skill25: Love Drain, description: Absorbs health and energy from enemies charmed by the boss.
+        }
+    }
+
+    boss10{
+        name: Broken Salamander
+        heal{
+            skill1: Flame of Regeneration, description: Heals over time by absorbing the power of fire.
+            skill2: Salamander’s Burn, description: Heals while inflicting fire damage to enemies nearby.
+        }
+        status{
+            skill3: Molten Armor, description: Increases defense by coating itself in molten rock.
+            skill4: Fire Infusion, description: Adds fire to all attacks, dealing additional burn damage.
+            skill5: Lava Shield, description: Reduces damage taken by creating a shield of molten lava.
+        }
+        magic{
+            skill6: Flame Burst, description: Launches a burst of fire at enemies.
+            skill7: Inferno, description: Summons a pillar of fire to consume a single enemy.
+            skill8: Lava Surge, description: Causes lava to surge up from the ground, damaging enemies.
+        }
+        curse{
+            skill9: Scorched Earth, description: Curses enemies, causing them to take additional fire damage.
+            skill10: Flame’s Curse, description: Reduces enemy resistance to fire-based attacks.
+        }
+        attack{
+            skill11: Salamander Strike, description: Attacks with a fiery blow, burning the enemy.
+            skill12: Flame Claw, description: Slashes the enemy with claws of fire, causing burn damage.
+            skill13: Molten Bite, description: Bites the enemy with molten fangs, leaving a burning effect.
+        }
+        summon{
+            skill14: Flame Spirits, description: Summons fire spirits to aid in battle.
+            skill15: Lava Golems, description: Summons molten rock golems to fight alongside the boss.
+        }
+        buff{
+            skill16: Heatwave Empowerment, description: Increases attack power in high-temperature environments.
+            skill17: Fire’s Endurance, description: Increases health and resistance to fire damage.
+        }
+        debuff{
+            skill18: Flame’s Weakness, description: Reduces enemy resistance to fire-based attacks.
+        }
+        area{
+            skill19: Volcanic Eruption, description: Causes a volcanic eruption to deal massive damage to all enemies.
+            skill20: Lava Field, description: Covers the battlefield in lava, burning enemies over time.
+        }
+        special{
+            skill21: Salamander’s Wrath, description: Unleashes the full power of fire, dealing massive damage.
+            skill22: Pyroclasm, description: Causes a violent burst of fire that devastates the battlefield.
+        }
+        regeneration{
+            skill23: Phoenix Rebirth, description: Heals fully after reaching low health, once per battle.
+        }
+        counter{
+            skill24: Flame Retaliation, description: Every time the boss is hit, it counters with a burst of fire.
+        }
+        drain{
+            skill25: Fire Drain, description: Absorbs life from enemies burned by the boss’s attacks.
+        }
+    }
+}
