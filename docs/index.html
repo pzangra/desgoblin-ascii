@@ -54,7 +54,7 @@
         });
     </script>
 
-    <script type="py" config='{"packages": [], "fetch": [{"from": "../src/", "to_folder": "src", "files": ["**/*.py"]}]}'>
+    <script type="py" config='{"packages": [], "fetch": [{"from": "./src/", "to_folder": "src", "files": ["**/*.py", "**/*.json"]}]}'>
         import asyncio
         from pyscript import display
         from src.main import start_app
