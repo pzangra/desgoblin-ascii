@@ -18,7 +18,7 @@ from battle_system.enemy import generate_boss, generate_enemy, boss_list
 from battle_system.health_bar import HealthBar
 from battle_system.item import *
 from battle_system.weapon import Weapon, generate_weapon, low_tier_weapons, mid_tier_weapons, high_tier_weapons
-from map_system.map import shrine
+from map_system.map import shrine, plains
 
 class Game:
     """Main Game class to manage game flow and state."""
