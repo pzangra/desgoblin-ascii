@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Dragon Lord",
+    "health": 300,
+    "weapon": {"name": "Flame Breath", "weapon_type": "natural", "damage": 25},
+    "evade_ch": 5,
+    "crit_ch": 20,
+    "armor": 15,
+    "tier": "boss",
+    "drops": ["Legendary Sword", "Dragon Scale"]
+  },
+  {
+    "name": "Goblin Supreme",
+    "health": 400,
+    "weapon": {"name": "Eldritch Staff", "weapon_type": "staff", "damage": 30},
+    "evade_ch": 10,
+    "crit_ch": 15,
+    "armor": 10,
+    "tier": "boss",
+    "drops": ["Eldritch Staff", "Goblin Crown", "Healing Potion"]
+  },
+  {
+    "name": "Troll Champion Boxeur",
+    "health": 1000,
+    "weapon": {"name": "Spiked Gauntlets", "weapon_type": "blunt", "damage": 40},
+    "evade_ch": 5,
+    "crit_ch": 10,
+    "armor": 15,
+    "tier": "boss",
+    "drops": ["Spiked Gauntlets", "Troll Hide Armor", "Strength Potion"]
+  },
+  {
+    "name": "African Turtle",
+    "health": 800,
+    "weapon": {"name": "Shell Lance", "weapon_type": "spear", "damage": 35},
+    "evade_ch": 3,
+    "crit_ch": 8,
+    "armor": 25,
+    "tier": "boss",
+    "drops": ["Shell Shield", "Ocean Stone", "Healing Potion"]
+  },
+  {
+    "name": "Ultras Penguin",
+    "health": 800,
+    "weapon": {"name": "Glacier Beak", "weapon_type": "natural", "damage": 35},
+    "evade_ch": 8,
+    "crit_ch": 12,
+    "armor": 18,
+    "tier": "boss",
+    "drops": ["Ice Shard Armor", "Frozen Crystal", "Penguin Feather Charm"]
+  },
+  {
+    "name": "Bard Gargoyle",
+    "health": 550,
+    "weapon": {"name": "Ethereal Screech", "weapon_type": "natural", "damage": 32},
+    "evade_ch": 7,
+    "crit_ch": 15,
+    "armor": 20,
+    "tier": "boss",
+    "drops": ["Stone Wing Fragment", "Sonic Crystal", "Musical Relic"]
+  },
+  {
+    "name": "Sexy Fox",
+    "health": 450,
+    "weapon": {"name": "Enchanting Claws", "weapon_type": "natural", "damage": 30},
+    "evade_ch": 12,
+    "crit_ch": 10,
+    "armor": 8,
+    "tier": "boss",
+    "drops": ["Fox Tail Charm", "Alluring Perfume", "Illusion Crystal"]
+  },
+  {
+    "name": "Broken Salamander",
+    "health": 650,
+    "weapon": {"name": "Flame Claw", "weapon_type": "natural", "damage": 35},
+    "evade_ch": 6,
+    "crit_ch": 14,
+    "armor": 22,
+    "tier": "boss",
+    "drops": ["Salamander Scale", "Flame Essence", "Phoenix Feather"]
+  },
+  {
+    "name": "Gargololo",
+    "health": 1200,
+    "weapon": {"name": "Void Reaver", "weapon_type": "unique", "damage": 120},
+    "evade_ch": 15,
+    "crit_ch": 25,
+    "armor": 35,
+    "tier": "final_boss",
+    "drops": ["Void Fragment", "Cosmic Essence", "Primordial Crystal"]
+  }
+]

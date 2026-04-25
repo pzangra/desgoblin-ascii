@@ -8,26 +8,53 @@
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
         body { background-color: #0c0c0c; color: #1aff1a; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
+        body:focus { outline: none; }
         #terminal {
             padding: 20px;
-            height: 90vh;
+            height: 100vh;
             overflow-y: auto;
-            white-space: pre-wrap;
+            white-space: pre;
             text-shadow: 0 0 5px #1aff1a;
             scrollbar-width: thin;
             scrollbar-color: #1aff1a #0c0c0c;
         }
-        .input-line { display: flex; padding: 10px 20px; border-top: 1px solid #1aff1a; }
-        #user-input { background: transparent; border: none; color: #1aff1a; font-family: inherit; font-size: 1em; flex-grow: 1; outline: none; }
     </style>
 </head>
-<body>
+<body tabindex="0">
     <div id="terminal">Initializing Desgoblin-ASCII Engine...</div>
-    <div class="input-line">
-        <span>>&nbsp;</span><input type="text" id="user-input" autofocus>
-    </div>
+    <script>
+        window.keyQueue = [];
+        document.body.tabIndex = 0;
+        window.addEventListener("load", () => {
+            document.body.focus();
+        });
+        document.addEventListener("keydown", (event) => {
+            const active = document.activeElement;
+            if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+                return;
+            }
+            let key = event.key.toLowerCase();
+            if (key === "escape") {
+                key = "esc";
+            }
+            if (key === "enter" || key === "backspace" || key === "tab") {
+                event.preventDefault();
+                window.keyQueue.push(key);
+                return;
+            }
+            if (key === "arrowup" || key === "arrowdown" || key === "arrowleft" || key === "arrowright") {
+                event.preventDefault();
+                window.keyQueue.push(key);
+                return;
+            }
+            if (key.length === 1 || key === "esc") {
+                event.preventDefault();
+                window.keyQueue.push(key);
+            }
+        });
+    </script>
 
-    <script type="py" config='{"packages": [], "fetch": [{"from": "../desgoblin_ascii/", "to_folder": "src", "files": ["main.py"]}]}'>
+    <script type="py" config='{"packages": [], "fetch": [{"from": "../src/", "to_folder": "src", "files": ["**/*.py"]}]}'>
         import sys
         from pyscript import display
 

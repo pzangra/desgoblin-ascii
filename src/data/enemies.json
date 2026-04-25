@@ -1,0 +1,50 @@
+{
+    "low": [
+        "Slime", "Rat", "Goblin", "Spider", "Bat", "Snake", "Kobold", "Imp", "Bandit",
+        "Skeleton", "Zombie", "Giant Rat", "Cave Beetle", "Mud Crab", "Shadow Cat", "Wild Dog",
+        "Giant Centipede", "Boggart", "Mimicling", "Pixie", "Grelling", "Dust Mephit", "Giant Spider",
+        "Stirge", "Ghoul", "Darkling", "Wisp", "Crowfolk", "Carrion Beetle", "Vermling", "Giant Ant",
+        "Kappa", "Mud Elemental", "Scavenger", "Fire Beetle", "Crimson Bat", "Hagling", "Feral Boar",
+        "Dire Rabbit", "Raven", "Young Harpy", "Wood Sprite", "Giant Snail", "Frost Beetle", "Shade",
+        "Cursed Doll", "Gloomling", "Thornling", "Drudge", "Forest Imp", "Scarecrow", "Gutter Rat",
+        "Young Basilisk", "Giant Leech", "Dark Fairy", "Ash Crawler", "Thieving Monkey", "Dire Mole",
+        "Muck Dweller", "Fungal Sprite", "Will-o'-Rat", "Briar Beast", "Rusted Automaton", "Rotten Hound",
+        "Pond Scum", "Grave Mite", "Lesser Djinn", "Hedge Gremlin", "Nettle Stalker", "Wicker Man",
+        "Black Cat", "Lesser Kobold", "Gloom Bat", "Mist Lurker", "Bog Imp", "Weasel", "Hedgehog",
+        "Ragged Ghoul", "Young Hobgoblin", "Firefly Swarm", "Ashen Wisp", "Plague Rat", "Grotto Crab",
+        "Dire Toad", "Crag Lizard", "Bramble Elemental", "Shadow Hare", "Sewer Slime", "Wild Goat",
+        "Rubble Sprite", "Rock Grub", "Night Roach", "Giant Worm", "Lost Soul", "Gutter Snipe",
+        "Broken Puppet"
+    ],
+    "mid": [
+        "Big Goblin", "Hobgoblin", "Orc", "Gnoll", "Wight", "Troll", "Ogre", "Minotaur", "Centaur",
+        "Werewolf", "Harpy", "Griffon", "Cyclops", "Gargoyle", "Rakshasa", "Sea Hag", "Doppelganger",
+        "Dark Knight", "Redcap", "Chimera", "Banshee", "Dire Wolf", "Will-o'-Wisp", "Revenant", "Barghest",
+        "Manticore", "Gorgon", "Siren", "Dryad", "Basilisk", "Cursed Armor", "Grendel", "Bone Naga",
+        "Keres", "Anubian Guardian", "Fomorian", "Kelpie", "Wendigo", "Blood Hunter", "Nymph", "Spriggan",
+        "Werebear", "Wyrmling", "Shadow Mastiff", "Peryton", "Phantom Knight", "Headless Horseman",
+        "Sand Wraith", "Storm Elemental", "Spectral Archer", "Voidwalker", "Night Hag", "Ghoul Lord",
+        "Moroi", "Ghul", "Stone Golem", "Hellhound", "Ashen Revenant", "Pit Fiendling", "Fire Djinn",
+        "Crocotta", "Ceryneian Hind", "Myrmidon", "Bog Witch", "Fiery Salamander", "Onyx Gargoyle",
+        "Frost Troll", "Infernal Imp", "Cave Troll", "Sewer King", "Giant Scorpion", "Silverback Ape",
+        "Myrkalfar", "Black Annis", "Ash Wraith", "Desert Ghoul", "Clockwork Soldier", "Vodyanoi",
+        "Rusalka", "Draugr", "Half-Orc Brute", "Hill Giant", "Fenrir Pup", "Marble Statue", "Bugbear",
+        "Horned Devil", "Spectral Swordsman", "Harlequin Shade", "Cacodaemon", "Gloom Weaver",
+        "Blood Shade", "Black Knight"
+    ],
+    "high": [
+        "Wyvern", "Drake", "Titan", "Lich", "Vampire", "Dragon", "Behemoth", "Balor", "Kraken",
+        "Nightmare", "Elder Brain", "Shoggoth", "Star Spawn", "Demon Lord", "Pit Fiend", "Moloch",
+        "Hydra", "Hellhound Alpha", "Aboleth", "Elder Deep One", "Phoenix", "Archdemon", "Leviathan",
+        "Seraphim", "Bone Dragon", "Storm Giant", "Sphinx", "Charybdis", "Scylla", "Thanatos",
+        "Hecatoncheires", "Tarrasque", "Frost Wyrm", "Chernobog", "Anubis", "Fenrir", "Jormungandr",
+        "Nemean Lion", "Yamata-no-Orochi", "Ifrit", "Djinn Lord", "Nephilim", "Archon", "Astaroth",
+        "Beelzebub", "Belial", "Asmodeus", "Lilith", "Ziz", "Mammon", "Azazel", "Bael", "Qliphoth Beast",
+        "The Black Goat", "Great Unclean One", "Prince of Darkness", "Yaldabaoth", "Abyssal Wyrm",
+        "Ereshkigal", "Vritra", "Kali", "Garuda", "Ravana", "The Morrigan", "Baphomet", "Chimera Prime",
+        "Typhon", "Echidna", "Pontianak", "Black Tortoise", "Gugalanna", "Zuul", "Kukulkan", "The Erlking",
+        "Archlich", "Death Knight", "Lord of Change", "Archfiend", "Ashura", "Demogorgon", "Nyarlathotep",
+        "Ithaqua", "Yog-Sothoth", "Cthulhu", "Apep", "Set", "Geryon", "Aegir", "Kronos", "Hyperion",
+        "Atlas", "The Sorrow", "Father of Serpents", "Celestial Dragon", "The Devourer", "The False Prophet"
+    ]
+}

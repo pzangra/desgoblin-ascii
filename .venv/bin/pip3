@@ -1,4 +1,4 @@
-#!/home/namurz/desgoblin-ascii/.venv/bin/python3
+#!/home/namurz/desgoblin-ascii/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
