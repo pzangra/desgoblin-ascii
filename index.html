@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desgoblin ASCII</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { background-color: #0c0c0c; color: #1aff1a; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
+        body:focus { outline: none; }
+        #terminal {
+            padding: 20px;
+            height: 100vh;
+            overflow-y: auto;
+            white-space: pre;
+            text-shadow: 0 0 5px #1aff1a;
+            scrollbar-width: thin;
+            scrollbar-color: #1aff1a #0c0c0c;
+        }
+    </style>
+</head>
+<body tabindex="0">
+    <div id="terminal">Initializing Desgoblin-ASCII Engine...</div>
+    <script>
+        window.keyQueue = [];
+        document.body.tabIndex = 0;
+        window.addEventListener("load", () => {
+            document.body.focus();
+        });
+        document.addEventListener("keydown", (event) => {
+            const active = document.activeElement;
+            if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+                return;
+            }
+            let key = event.key.toLowerCase();
+            if (key === "escape") {
+                key = "esc";
+            }
+            if (key === "enter" || key === "backspace" || key === "tab") {
+                event.preventDefault();
+                window.keyQueue.push(key);
+                return;
+            }
+            if (key === "arrowup" || key === "arrowdown" || key === "arrowleft" || key === "arrowright") {
+                event.preventDefault();
+                window.keyQueue.push(key);
+                return;
+            }
+            if (key.length === 1 || key === "esc") {
+                event.preventDefault();
+                window.keyQueue.push(key);
+            }
+        });
+    </script>
+
+    <script type="py" config='{"packages": [], "fetch": [{"from": "./src/", "to_folder": "src", "files": ["**/*.py", "**/*.json"]}]}'>
+        import asyncio
+        from pyscript import display
+        from src.main import start_app
+
+        # Redirects Python print calls to the terminal div
+        def print_to_web(*args):
+            display(" ".join(map(str, args)), target="terminal", append=True)
+
+        print_to_web("\n[SYSTEM]: Game Logic Loaded successfully.")
+        print_to_web("[SYSTEM]: Welcome, Traveler.")
+
+        async def boot():
+            await start_app()
+
+        asyncio.ensure_future(boot())
+    </script>
+</body>
+</html>
