@@ -2,6 +2,10 @@
 
 A retro ASCII-based RPG built in Python and deployed as a dynamic web experience.
 
+## Play in Browser
+
+Launch the game here: https://namurz.github.io/desgoblin-ascii/
+
 ## Infrastructure
 - **Logic:** Python 3.12+
 - **Frontend:** PyScript (Python in the Browser)
