@@ -9,8 +9,13 @@ A retro ASCII-based RPG built in Python and deployed as a dynamic web experience
 
 ## How to Play
 
-1. git clone
-2. install from requirements.txt
-3. python3 src/main.py
+1. git clone <link>
+2. set up venv
+   > python3 -m venv venv
+   >source venv/bin/activate
+3. install requirements
+  > pip install --upgrade pip
+  > pip install -r requirements.txt
+5. execute code
+  >python3 src/main.py
 
-The game is hosted at:
