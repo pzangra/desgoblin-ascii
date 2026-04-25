@@ -54,17 +54,40 @@
         });
     </script>
 
-    <script type="py" config='{"packages": [], "fetch": [{"from": "../src/", "to_folder": "src", "files": ["**/*.py"]}]}'>
+    <py-config>
+        packages = ["noise"]
+        fetch = [
+            {"from": "../src", "to_folder": "src", "files": ["*.py", "*.json"]},
+            {"from": "../src/battle_system", "to_folder": "src/battle_system", "files": ["*.py"]},
+            {"from": "../src/game_system", "to_folder": "src/game_system", "files": ["*.py"]},
+            {"from": "../src/map_system", "to_folder": "src/map_system", "files": ["*.py"]},
+            {"from": "../src/data", "to_folder": "src/data", "files": ["*.json"]}
+        ]
+    </py-config>
+
+    <script type="py">
         import asyncio
+        import sys
+        from pathlib import Path
         from pyscript import display
-        from src.main import start_app
+
+        # Add src to path for absolute imports
+        sys.path.insert(0, "/src")
 
         # Redirects Python print calls to the terminal div
         def print_to_web(*args):
             display(" ".join(map(str, args)), target="terminal", append=True)
 
-        print_to_web("\n[SYSTEM]: Game Logic Loaded successfully.")
-        print_to_web("[SYSTEM]: Welcome, Traveler.")
+        print_to_web("\n[SYSTEM]: Initializing game modules...")
+        
+        try:
+            from main import start_app
+            print_to_web("[SYSTEM]: Game Logic Loaded successfully.")
+            print_to_web("[SYSTEM]: Welcome, Traveler.")
+        except ImportError as e:
+            print_to_web(f"[ERROR]: Failed to load game: {e}")
+            print_to_web("[DEBUG]: Check that all .py files were fetched correctly.")
+            raise
 
         async def boot():
             await start_app()
