@@ -6,6 +6,7 @@ from battle_system.weapon import Weapon, generate_weapon
 from battle_system.health_bar import HealthBar
 from battle_system.weapon import *
 from battle_system.skill import PLAYER_SKILLS, Skill
+from game_system.browser_input import async_input
 
 class Character(ABC):
     """Base class for all characters in the game."""
@@ -267,7 +268,7 @@ class Hero(Character):
         
         self.mp = min(self.mp_max, self.mp + amount)
     
-    def display_inventory(self):
+    async def display_inventory(self):
         """Display the inventory menu and handle user navigation."""
         current_menu = "main"
         
@@ -284,7 +285,7 @@ class Hero(Character):
                 print("4: Skills")  # New option for skills
                 print("0: Exit Inventory")
                 
-                choice = input("\nEnter your choice: ")
+                choice = await async_input("\nEnter your choice: ")
                 
                 if choice == "1":
                     current_menu = "stats"
@@ -316,7 +317,7 @@ class Hero(Character):
                 self.display_skills_menu()  # New skills menu
                 current_menu = "main"
     
-    def display_stats_menu(self):
+    async def display_stats_menu(self):
         """Display player stats menu."""
         print("\n" + "-"*50)
         print(f"{self.name}'s Stats".center(50))
@@ -332,9 +333,9 @@ class Hero(Character):
         print(f"\nEnemies defeated: {self.enemies_killed}")
         print(f"Boss summoned: {'Yes' if self.boss_summoned else 'No'}")
         
-        input("\nPress Enter to return to main menu...")
+        await async_input("\nPress Enter to return to main menu...")
     
-    def display_skills_menu(self):
+    async def display_skills_menu(self):
         """Display skills menu with regular and stolen skills."""
         print("\n" + "-"*50)
         print("Skills".center(50))
@@ -362,9 +363,9 @@ class Hero(Character):
         else:
             print("\nNo stolen skills yet. Defeat bosses to steal their skills.")
         
-        input("\nPress Enter to return to inventory menu...")
+        await async_input("\nPress Enter to return to inventory menu...")
     
-    def display_equipment_menu(self):
+    async def display_equipment_menu(self):
         """Display equipment menu."""
         print("\n" + "-"*50)
         print("Equipment".center(50))
@@ -383,9 +384,9 @@ class Hero(Character):
         else:
             print("\nNo additional equipment.")
             
-        input("\nPress Enter to return to main menu...")
+        await async_input("\nPress Enter to return to main menu...")
     
-    def display_satchel_menu(self):
+    async def display_satchel_menu(self):
         """Display satchel/inventory items menu."""
         print("\n" + "-"*50)
         print("Satchel".center(50))
@@ -397,7 +398,7 @@ class Hero(Character):
                 print(f"{i}: {item.name} - {item.description if hasattr(item, 'description') else ''}")
             
             print("\nEnter item number to use it, or 0 to go back")
-            choice = input("Choice: ")
+            choice = await async_input("Choice: ")
             
             try:
                 item_index = int(choice) - 1
@@ -411,7 +412,7 @@ class Hero(Character):
                 print("Invalid input.")
         else:
             print("Your satchel is empty.")
-            input("\nPress Enter to return to main menu...")
+            await async_input("\nPress Enter to return to main menu...")
     
     def check_all_enemies_defeated(self, game_map):
         """Check if all enemies are defeated and spawn shrine if needed."""

@@ -1,5 +1,6 @@
 import sys
 import os
+import asyncio
 
 # Safely add the 'src' directory to Python's path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -9,15 +10,17 @@ if SRC_DIR not in sys.path:
 
 from map_system.map import Map
 from map_system.tiles import Tile, plains, forest, brush, mountain, water
+from game_system.browser_input import async_input
 
 os.system("")
 
-def run() -> None:
+async def run() -> None:
     while True:
         game_map.display_map()
-        input("> ")
+        await async_input("> ")
+        await asyncio.sleep(0)
 
 if __name__ == "__main__":
     map_w, map_h = 30, 15
     game_map = Map(map_w, map_h)
-    run()
+    asyncio.run(run())

@@ -1,8 +1,9 @@
 """Browser-friendly menu input and display for PyScript / JS integration."""
 
+import asyncio
 from typing import Optional, List
 
-from game_system.browser_input import get_next_key
+from game_system.browser_input import get_next_key, get_next_key_async
 from game_system.browser_display import set_screen, is_browser_display
 
 
@@ -26,7 +27,7 @@ def render_menu(title: str, options: List[str], selected_index: int = 0, footer:
     return "\n".join(lines)
 
 
-def get_menu_choice(title: str, options: List[str], timeout: float = None) -> Optional[int]:
+async def get_menu_choice(title: str, options: List[str], timeout: float = None) -> Optional[int]:
     """
     Get a menu choice (0-indexed) using Enter-confirmed input.
     Works in both terminal and browser mode.
@@ -38,9 +39,10 @@ def get_menu_choice(title: str, options: List[str], timeout: float = None) -> Op
             while True:
                 typed = "".join(buffered) if buffered else ""
                 set_screen(render_menu(title, options, footer=f"Choice: {typed}_\nType a number and press Enter. Esc cancels."))
-                key = get_next_key(timeout=0.05)
+                key = await get_next_key_async(timeout=0.05)
 
                 if key is None:
+                    await asyncio.sleep(0)
                     continue
                 if key == "esc":
                     return None
@@ -54,7 +56,7 @@ def get_menu_choice(title: str, options: List[str], timeout: float = None) -> Op
                     break
                 if key.isdigit():
                     buffered.append(key)
-            
+
             if user_input.isdigit():
                 choice_idx = int(user_input) - 1
                 if 0 <= choice_idx < len(options):
@@ -80,7 +82,7 @@ def display_menu_terminal(title: str, options: List[str], selected_index: int = 
     print(render_menu(title, options, selected_index))
 
 
-def get_text_input(prompt: str, max_length: int = 100) -> Optional[str]:
+async def get_text_input(prompt: str, max_length: int = 100) -> Optional[str]:
     """
     Get text input from user.
     Browser: uses key polling with visual feedback
@@ -92,8 +94,9 @@ def get_text_input(prompt: str, max_length: int = 100) -> Optional[str]:
             display_text = "".join(result)
             set_screen(f"{prompt}\n\n{display_text}_\n\nEnter to confirm, Backspace to delete, Esc to cancel")
 
-            key = get_next_key(timeout=0.05)
+            key = await get_next_key_async(timeout=0.05)
             if key is None:
+                await asyncio.sleep(0)
                 continue
 
             if key == "enter":
@@ -108,11 +111,11 @@ def get_text_input(prompt: str, max_length: int = 100) -> Optional[str]:
         return input(prompt).strip() or None
 
 
-def show_message(title: str, message: str, button_text: str = "Continue") -> None:
+async def show_message(title: str, message: str, button_text: str = "Continue") -> None:
     """Show a message dialog and wait for confirmation."""
     if is_browser_display():
         set_screen(f"\n{'=' * 60}\n{title.center(60)}\n{'=' * 60}\n\n{message}\n\n Press any key to {button_text}...")
-        get_next_key(timeout=None)
+        await get_next_key_async(timeout=None)
     else:
         import os
         os.system("cls" if os.name == "nt" else "clear")
@@ -123,7 +126,7 @@ def show_message(title: str, message: str, button_text: str = "Continue") -> Non
         input(f"\nPress Enter to {button_text}...")
 
 
-def show_yes_no_prompt(title: str, message: str) -> bool:
+async def show_yes_no_prompt(title: str, message: str) -> bool:
     """Show a yes/no prompt. Returns True for yes, False for no."""
     if is_browser_display():
         while True:
@@ -132,7 +135,10 @@ def show_yes_no_prompt(title: str, message: str) -> bool:
                 f"{message}\n\n"
                 f"Press Y for Yes, N for No"
             )
-            key = get_next_key(timeout=0.05)
+            key = await get_next_key_async(timeout=0.05)
+            if key is None:
+                await asyncio.sleep(0)
+                continue
             if key in ("y", "yes"):
                 return True
             elif key in ("n", "no"):

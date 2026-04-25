@@ -1,5 +1,6 @@
 # src/battlesys.py
 
+import asyncio
 import random
 
 from battle_system.character import Hero
@@ -8,6 +9,7 @@ from battle_system.health_bar import HealthBar
 from battle_system.item import *
 from battle_system.weapon import Weapon
 from game_system.cli_utils import clear_console, flush_input_buffer
+from game_system.browser_input import async_input
 
 class BattleSystem:
     """Class to manage battles between the hero and enemies."""
@@ -28,7 +30,7 @@ class BattleSystem:
         """Clear any pending keystrokes from the console buffer."""
         flush_input_buffer()
 
-    def start_battle(self):
+    async def start_battle(self):
         """Starts the battle loop."""
         self.hero.health_bar.update()
         self.enemy.health_bar.update()
@@ -46,14 +48,14 @@ class BattleSystem:
 
             # Player's turn if not affected by status effects
             if not self.is_affected_by_status(self.hero, 'stunned'):
-                action = input("\nChoose your action: [a]ttack, [s]kills, [i]tems, [e]scape: ").strip().lower()
+                action = (await async_input("\nChoose your action: [a]ttack, [s]kills, [i]tems, [e]scape: ")).strip().lower()
 
                 if action == 'a':
                     self.attack()
                 elif action == 's':
-                    self.use_skill()
+                    await self.use_skill()
                 elif action == 'i':
-                    self.use_item()
+                    await self.use_item()
                 elif action == 'e':
                     if self.escape():
                         break
@@ -93,7 +95,7 @@ class BattleSystem:
                 # Leave boss skill selection to the shrine victory flow in main.py.
                 if not isinstance(self.enemy, Boss):
                     # Handle treasure encounter for non-boss enemies
-                    self.handle_treasure_encounter()
+                    await self.handle_treasure_encounter()
                 
                 self.running = False
 
@@ -152,13 +154,13 @@ class BattleSystem:
         damage_info = self.hero.attack(self.enemy)
         self.battle_log.append(damage_info)
 
-    def use_skill(self):
+    async def use_skill(self):
         """Handles the hero using a skill."""
         available_skills = self.hero.get_available_skills()
         
         if not available_skills:
             print("You have no skills available to use.")
-            input("Press Enter to continue.")
+            await async_input("Press Enter to continue.")
             return
         
         print("\nAvailable Skills:")
@@ -168,7 +170,7 @@ class BattleSystem:
             stolen = " (Stolen)" if skill in self.hero.stolen_skills else ""
             print(f"{idx}. {skill.name}{stolen} - {skill.description} ({mp_cost}, {cooldown})")
         
-        choice = input("Select a skill to use or 'b' to go back: ").strip()
+        choice = (await async_input("Select a skill to use or 'b' to go back: ")).strip()
         
         if choice.lower() == 'b':
             return
@@ -196,13 +198,13 @@ class BattleSystem:
         else:
             print("Invalid input.")
         
-        input("Press Enter to continue.")
+        await async_input("Press Enter to continue.")
 
-    def use_item(self):
+    async def use_item(self):
         """Handles the hero using an item."""
         if not self.hero.items:
             print("You have no items to use.")
-            input("Press Enter to continue.")
+            await async_input("Press Enter to continue.")
             return
 
         # Group items by name and count them
@@ -221,7 +223,7 @@ class BattleSystem:
         for idx, (name, data) in enumerate(item_counts.items(), 1):
             print(f"{idx}: {name} x{data['count']} - {data['item'].description}")
         
-        choice = input("Select an item to use or 'b' to go back: ").strip()
+        choice = (await async_input("Select an item to use or 'b' to go back: ")).strip()
         if choice.isdigit():
             idx = int(choice) - 1
             if 0 <= idx < len(item_counts):
@@ -251,15 +253,15 @@ class BattleSystem:
                 else:
                     print(f"That was your last {selected_item_name}.")
                 
-                input("Press Enter to continue.")
+                await async_input("Press Enter to continue.")
             else:
                 print("Invalid selection.")
-                input("Press Enter to continue.")
+                await async_input("Press Enter to continue.")
         elif choice.lower() == 'b':
             return
         else:
             print("Invalid input.")
-            input("Press Enter to continue.")
+            await async_input("Press Enter to continue.")
 
     def escape(self):
         """Attempts to escape from the battle."""
@@ -336,12 +338,12 @@ class BattleSystem:
         """Clears the console screen."""
         clear_console()
 
-    def offer_skill_stealing(self):
+    async def offer_skill_stealing(self):
         """Offers the player a chance to steal a skill from the defeated boss."""
         # Check if this boss has already had skills stolen
         if self.enemy.tier == 'boss' and Boss.was_defeated(self.enemy.name):
             print(f"\nYou have already stolen a skill from {self.enemy.name}.")
-            input("Press Enter to continue...")
+            await async_input("Press Enter to continue...")
             return
             
         stealable_skills = [s for s in self.enemy.skills if s.stealable]
@@ -361,7 +363,7 @@ class BattleSystem:
         
         while True:
             try:
-                choice = int(input("Enter your choice: "))
+                choice = int(await async_input("Enter your choice: "))
                 if choice == 0:
                     print("You decided not to steal any skills.")
                     break
@@ -371,7 +373,7 @@ class BattleSystem:
                     # Confirm the choice due to permanent stat penalties
                     costs = ", ".join(f"{k}: {v}" for k, v in selected_skill.stat_cost.items())
                     print(f"\nWARNING: Stealing {selected_skill.name} will permanently affect your stats: {costs}")
-                    confirm = input("Are you sure you want to proceed? (y/n): ").lower()
+                    confirm = (await async_input("Are you sure you want to proceed? (y/n): ")).lower()
                     
                     if confirm == 'y':
                         self.hero.steal_skill(selected_skill)
@@ -387,9 +389,9 @@ class BattleSystem:
                 print("Please enter a number.")
         
         # Wait for user acknowledgment
-        input("\nPress Enter to continue...")
+        await async_input("\nPress Enter to continue...")
 
-    def handle_treasure_encounter(self):
+    async def handle_treasure_encounter(self):
         """Handles random treasure encounters after battles."""
         self.flush_input_buffer()
         # Generate a random number to determine if treasure is found
@@ -420,7 +422,7 @@ class BattleSystem:
                 print(f"You found a {found_weapon.name} (Damage: {found_weapon.damage})!")
                 print(f"Your current weapon: {self.hero.weapon.name} (Damage: {self.hero.weapon.damage})")
                 
-                choice = input("Take the weapon? (y/n): ").lower()
+                choice = (await async_input("Take the weapon? (y/n): ")).lower()
                 if choice == 'y':
                     self.hero.equip(found_weapon)  # Changed from equip_weapon to equip
                     print(f"You equipped {found_weapon.name}.")
@@ -468,4 +470,4 @@ class BattleSystem:
                 self.hero.cashpile += gold_amount
                 print(f"You found {gold_amount} gold!")
         
-        input("Press Enter to continue...")
+        await async_input("Press Enter to continue...")

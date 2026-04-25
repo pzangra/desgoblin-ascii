@@ -8,6 +8,7 @@ from battle_system.enemy import Boss, boss_list, generate_boss, generate_enemy
 from battle_system.item import create_item_from_name
 from battle_system.skill import BOSS_SKILLS, PLAYER_SKILLS
 from battle_system.weapon import Weapon
+from game_system.browser_display import is_browser_display
 from map_system.map import Map
 
 SAVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saves")
@@ -15,7 +16,17 @@ DEFAULT_SAVE_PATH = os.path.join(SAVE_DIR, "save_game.json")
 
 
 def _ensure_save_dir() -> None:
+    if is_browser_display():
+        return
     os.makedirs(SAVE_DIR, exist_ok=True)
+
+
+def has_saved_game(save_path: Optional[str] = None) -> bool:
+    """Return True when a local save file exists and can be loaded."""
+    if is_browser_display():
+        return False
+    target_path = save_path or DEFAULT_SAVE_PATH
+    return os.path.exists(target_path)
 
 
 def _skill_lookup() -> Dict[str, object]:
@@ -43,6 +54,7 @@ def create_save_state(game) -> Dict:
         "seed": getattr(game, "seed", None),
         "cycle": getattr(game, "cycle", 0),
         "boss_defeated": getattr(game, "boss_defeated", 0),
+        "boss_summoned": bool(getattr(game, "boss_summoned", False)),
         "defeated_bosses": sorted(Boss.defeated_bosses),
         "player": {
             "position": {
@@ -60,6 +72,9 @@ def create_save_state(game) -> Dict:
                 "experience": getattr(hero, "experience", 0),
                 "experience_to_next_level": getattr(hero, "experience_to_next_level", 100),
                 "enemies_killed": getattr(hero, "enemies_killed", 0),
+                "evade_ch": getattr(hero, "evade_ch", 0),
+                "crit_ch": getattr(hero, "crit_ch", 0),
+                "armor": getattr(hero, "armor", 0),
             },
             "weapon": {
                 "name": hero.weapon.name,
@@ -67,6 +82,7 @@ def create_save_state(game) -> Dict:
                 "damage": hero.weapon.damage,
                 "value": hero.weapon.value,
                 "tier": hero.weapon.tier,
+                "cycle": getattr(hero.weapon, "cycle", 0),
             },
             "skills": [
                 {"name": skill.name, "cooldown": skill.cooldown, "mp_cost": skill.mp_cost}
@@ -82,6 +98,9 @@ def create_save_state(game) -> Dict:
                 "name": item.name,
                 "type": item.__class__.__name__,
                 "description": getattr(item, "description", ""),
+                "tier": getattr(item, "tier", ""),
+                "value": getattr(item, "value", 0),
+                "damage": getattr(item, "damage", None),
             }
             for item in getattr(hero, "items", [])
         ],
@@ -98,9 +117,31 @@ def create_save_state(game) -> Dict:
                 "position": _safe_pos_from_enemy(enemy),
                 "health": enemy.health,
                 "health_max": enemy.health_max,
+                "evade_ch": getattr(enemy, "evade_ch", 0),
+                "crit_ch": getattr(enemy, "crit_ch", 0),
+                "armor": getattr(enemy, "armor", 0),
+                "weapon": {
+                    "name": getattr(getattr(enemy, "weapon", None), "name", "Unknown"),
+                    "weapon_type": getattr(getattr(enemy, "weapon", None), "weapon_type", "blunt"),
+                    "damage": getattr(getattr(enemy, "weapon", None), "damage", 0),
+                    "value": getattr(getattr(enemy, "weapon", None), "value", 0),
+                    "tier": getattr(getattr(enemy, "weapon", None), "tier", "mid"),
+                    "cycle": getattr(getattr(enemy, "weapon", None), "cycle", 0),
+                },
+                "drops": list(getattr(enemy, "drops", [])) if hasattr(enemy, "drops") else [],
             }
             for enemy in getattr(game_map, "enemies", [])
         ]
+
+        visited_villages = []
+        looted_chests = []
+        for x, row in enumerate(game_map.map_data):
+            for y, tile in enumerate(row):
+                symbol_raw = getattr(tile, "symbol_raw", "")
+                if symbol_raw in {"V", "v"} and getattr(tile, "visited", False):
+                    visited_villages.append({"x": x, "y": y})
+                if symbol_raw in {"T", "t"} and getattr(tile, "looted", False):
+                    looted_chests.append({"x": x, "y": y})
 
         save_state["map"] = {
             "width": game_map.width,
@@ -114,6 +155,8 @@ def create_save_state(game) -> Dict:
                 [getattr(tile, "looted", False) for tile in row]
                 for row in game_map.map_data
             ],
+            "visited_villages": visited_villages,
+            "looted_chests": looted_chests,
         }
 
     return save_state
@@ -121,14 +164,20 @@ def create_save_state(game) -> Dict:
 
 def save_game_state(game, save_path: Optional[str] = None) -> None:
     """Persist the current game state to disk."""
+    if is_browser_display():
+        print("Saving disabled on web")
+        return
     _ensure_save_dir()
     target_path = save_path or DEFAULT_SAVE_PATH
     with open(target_path, "w", encoding="utf-8") as save_file:
-        json.dump(create_save_state(game), save_file)
+        json.dump(create_save_state(game), save_file, indent=2, ensure_ascii=True, sort_keys=True)
 
 
 def load_raw_save_state(save_path: Optional[str] = None) -> Optional[Dict]:
     """Load raw save JSON from disk."""
+    if is_browser_display():
+        print("Loading disabled on web")
+        return None
     target_path = save_path or DEFAULT_SAVE_PATH
     if not os.path.exists(target_path):
         return None
@@ -161,6 +210,24 @@ def _restore_enemy(saved_enemy: Dict, cycle: int):
     enemy.name = saved_enemy.get("name", enemy.name)
     enemy.health = int(saved_enemy.get("health", enemy.health))
     enemy.health_max = int(saved_enemy.get("health_max", enemy.health_max))
+    enemy.evade_ch = int(saved_enemy.get("evade_ch", getattr(enemy, "evade_ch", 0)))
+    enemy.crit_ch = int(saved_enemy.get("crit_ch", getattr(enemy, "crit_ch", 0)))
+    enemy.armor = int(saved_enemy.get("armor", getattr(enemy, "armor", 0)))
+
+    weapon_data = saved_enemy.get("weapon", {})
+    if isinstance(weapon_data, dict) and weapon_data:
+        enemy.weapon = Weapon(
+            name=weapon_data.get("name", getattr(enemy.weapon, "name", "Unknown")),
+            weapon_type=weapon_data.get("weapon_type", getattr(enemy.weapon, "weapon_type", "blunt")),
+            damage=int(weapon_data.get("damage", getattr(enemy.weapon, "damage", 1))),
+            value=int(weapon_data.get("value", getattr(enemy.weapon, "value", 0))),
+            tier=weapon_data.get("tier", getattr(enemy.weapon, "tier", "mid")),
+            cycle=int(weapon_data.get("cycle", getattr(enemy.weapon, "cycle", 0))),
+        )
+
+    if "drops" in saved_enemy and isinstance(saved_enemy.get("drops"), list):
+        enemy.drops = [drop for drop in saved_enemy["drops"] if isinstance(drop, str)]
+
     enemy.health_bar.update()
     return enemy
 
@@ -187,6 +254,9 @@ def load_saved_game(game, save_path: Optional[str] = None) -> bool:
             game.seed = save_data["seed"]
         game.cycle = int(save_data.get("cycle", getattr(game, "cycle", 0)))
         game.boss_defeated = int(save_data.get("boss_defeated", getattr(game, "boss_defeated", 0)))
+        game.boss_summoned = bool(save_data.get("boss_summoned", getattr(game, "boss_summoned", False)))
+        if hasattr(game, "_calculate_enemy_distribution"):
+            game.enemy_distribution = game._calculate_enemy_distribution()
 
         # Hero state
         player_data = save_data.get("player", {})
@@ -205,6 +275,11 @@ def load_saved_game(game, save_path: Optional[str] = None) -> bool:
             stats.get("experience_to_next_level", getattr(hero, "experience_to_next_level", 100))
         )
         hero.enemies_killed = int(stats.get("enemies_killed", getattr(hero, "enemies_killed", 0)))
+        hero.evade_ch = int(stats.get("evade_ch", getattr(hero, "evade_ch", 0)))
+        hero.crit_ch = int(stats.get("crit_ch", getattr(hero, "crit_ch", 0)))
+        hero.armor = int(stats.get("armor", getattr(hero, "armor", 0)))
+        if hasattr(hero, "boss_summoned"):
+            hero.boss_summoned = bool(game.boss_summoned)
 
         weapon_data = player_data.get("weapon", {})
         if weapon_data:
@@ -214,6 +289,7 @@ def load_saved_game(game, save_path: Optional[str] = None) -> bool:
                 damage=int(weapon_data.get("damage", hero.weapon.damage)),
                 value=int(weapon_data.get("value", hero.weapon.value)),
                 tier=weapon_data.get("tier", hero.weapon.tier),
+                cycle=int(weapon_data.get("cycle", getattr(hero.weapon, "cycle", 0))),
             )
 
         # Skills: support both old list shape and new separate regular/stolen shape.
@@ -259,6 +335,8 @@ def load_saved_game(game, save_path: Optional[str] = None) -> bool:
             hero.player_pos = (px, py)
             game_map.player_pos = (px, py)
 
+        game_map.player_previous_tile = game_map.map_data[hero.player_pos[0]][hero.player_pos[1]]
+
         game_map.place_player(hero)
 
         # Restore tile metadata if present.
@@ -277,6 +355,35 @@ def load_saved_game(game, save_path: Optional[str] = None) -> bool:
                 tile = game_map.map_data[x][y]
                 if hasattr(tile, "looted"):
                     tile.looted = bool(row[y])
+
+        for village in map_data.get("visited_villages", []):
+            if not isinstance(village, dict):
+                continue
+            vx = int(village.get("x", -1))
+            vy = int(village.get("y", -1))
+            if 0 <= vx < game_map.height and 0 <= vy < game_map.width:
+                tile = game_map.map_data[vx][vy]
+                if hasattr(tile, "visited"):
+                    tile.visited = True
+                if getattr(tile, "symbol_raw", "") in {"V", "v"}:
+                    tile.symbol_raw = "v"
+                    tile.symbol = "\033[90mV\033[0m"
+
+        for chest in map_data.get("looted_chests", []):
+            if not isinstance(chest, dict):
+                continue
+            cx = int(chest.get("x", -1))
+            cy = int(chest.get("y", -1))
+            if 0 <= cx < game_map.height and 0 <= cy < game_map.width:
+                tile = game_map.map_data[cx][cy]
+                if hasattr(tile, "looted"):
+                    tile.looted = True
+                if hasattr(tile, "visited"):
+                    tile.visited = True
+                if getattr(tile, "symbol_raw", "") in {"T", "t"}:
+                    tile.symbol_raw = "t"
+                    tile.symbol = "\033[90mt\033[0m"
+                    tile.walkable = True
 
         # Enemies
         game_map.enemies = []

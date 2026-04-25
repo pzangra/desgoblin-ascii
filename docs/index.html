@@ -55,8 +55,9 @@
     </script>
 
     <script type="py" config='{"packages": [], "fetch": [{"from": "../src/", "to_folder": "src", "files": ["**/*.py"]}]}'>
-        import sys
+        import asyncio
         from pyscript import display
+        from src.main import start_app
 
         # Redirects Python print calls to the terminal div
         def print_to_web(*args):
@@ -64,6 +65,11 @@
 
         print_to_web("\n[SYSTEM]: Game Logic Loaded successfully.")
         print_to_web("[SYSTEM]: Welcome, Traveler.")
+
+        async def boot():
+            await start_app()
+
+        asyncio.ensure_future(boot())
     </script>
 </body>
 </html>

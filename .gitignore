@@ -1,8 +1,23 @@
+# OS generated files
+.DS_Store
+
+# Python
 __pycache__/
 *.py[cod]
-.DS_Store
-desgoblin_ascii/saves/*
-!desgoblin_ascii/saves/.gitkeep
+
+# Virtual Environments
 venv/
 .venv/
 env/
+
+# Environment Variables & Personal Workspace
+.env
+.claude/
+
+# Game Saves (desgoblin_ascii)
+desgoblin_ascii/saves/*
+!desgoblin_ascii/saves/.gitkeep
+
+# Game Saves (src/saves)
+src/saves/*.json
+!src/saves/.gitkeep

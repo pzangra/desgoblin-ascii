@@ -1,6 +1,6 @@
 import sys
 import os
-import time
+import asyncio
 from random import randint
 
 # Path fix for standalone running
@@ -16,6 +16,7 @@ from battle_system.character import Hero
 from battle_system.enemy import generate_enemy
 from battle_system.health_bar import HealthBar
 from battle_system.item import create_item_from_name
+from game_system.browser_input import async_input
 
 class Game:
     def __init__(self):
@@ -26,10 +27,11 @@ class Game:
     def clear(self) -> None:
         os.system("cls" if os.name == "nt" else "clear")
 
-    def run(self):
+    async def run(self):
         # Start with the menu and wait for input
         print("Menu input called")
-        if handle_menu_input():  # Menu returns True when "1" is pressed
+        menu_choice = await handle_menu_input()
+        if menu_choice and menu_choice.get("action") in {"new_game", "continue_game", "start_with_seed"}:
             self.clear()
             print("Game starting...\nInitializing map...\n")
 
@@ -48,7 +50,7 @@ class Game:
             while self.running:
                 self.clear()
                 game_map.display_map()  # Display the map
-                self.move_player(game_map)  # Capture movement
+                await self.move_player(game_map)  # Capture movement
 
                 # Check if all enemies are defeated
                 if not game_map.enemies:
@@ -57,14 +59,14 @@ class Game:
 
             print("Game Over. Thanks for playing!")
     
-    def display_victory_screen(self):
+    async def display_victory_screen(self):
         self.clear()
         print("Congratulations! You defeated all enemies.")
-        input("Press any key to exit...")
+        await async_input("Press any key to exit...")
         exit()
     
-    def move_player(self, game_map: Map):
-        direction = input("Enter direction (w/a/s/d): ").lower()
+    async def move_player(self, game_map: Map):
+        direction = (await async_input("Enter direction (w/a/s/d): ")).lower()
         x, y = game_map.player_pos
         new_x, new_y = x, y
 
@@ -84,12 +86,12 @@ class Game:
         # Check if player encounters an enemy
         if game_map.map_data[new_x][new_y].symbol_raw == 'E':
             print("Encountered an enemy!")
-            self.battle(game_map, new_x, new_y)
+            await self.battle(game_map, new_x, new_y)
         else:
             # Update map: move player to new position
             game_map.move_player(new_x, new_y)
         
-    def battle(self, game_map: Map, enemy_x: int, enemy_y: int):
+    async def battle(self, game_map: Map, enemy_x: int, enemy_y: int):
         enemy = game_map.get_enemy_at(enemy_x, enemy_y)
 
         if not enemy:
@@ -105,7 +107,7 @@ class Game:
             enemy.health_bar.draw()
 
             # Player's choice of action
-            action = input("Choose your action: [a]ttack, [s]kills, [i]tems, [e]scape: ").lower()
+            action = (await async_input("Choose your action: [a]ttack, [s]kills, [i]tems, [e]scape: ")).lower()
 
             if action == 'a':
                 # Player attacks
@@ -124,19 +126,19 @@ class Game:
                 print("Invalid action. Try again.")
                 continue
 
-            time.sleep(1)
+            await asyncio.sleep(1)
 
         if not enemy.alive:
             print(f"{enemy.name} has been defeated!")
             game_map.remove_enemy(enemy)
-            self.handle_loot(enemy)
+            await self.handle_loot(enemy)
         elif not self.hero.alive:
             print("You have been defeated! Game Over.")
             exit()
     
-    def handle_loot(self, enemy):
+    async def handle_loot(self, enemy):
         print(f"You found {enemy.weapon.name}. Value: {enemy.weapon.value} gold.")
-        choice = input("Do you want to pick it up or scrap it for gold? (p/s): ").lower()
+        choice = (await async_input("Do you want to pick it up or scrap it for gold? (p/s): ")).lower()
         if choice == 'p':
             print(f"You picked up {enemy.weapon.name}.")
             self.hero.scrap_current_weapon()
@@ -165,4 +167,4 @@ class Game:
 
 if __name__ == "__main__":
     game = Game()
-    game.run()
+    asyncio.run(game.run())

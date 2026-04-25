@@ -1,16 +1,16 @@
 # src/main.py
 
 import sys
-import time
+import asyncio
 import random as rand
 import traceback
 
 # Absolute imports from the desgoblin_ascii package
 from map_system.map import Map
-from game_system.menu import handle_menu_input
+from game_system.menu import handle_menu_input, in_game_menu
 from game_system.save_manager import load_saved_game
 from game_system.cli_utils import clear_console, flush_input_buffer
-from game_system.browser_input import get_next_key
+from game_system.browser_input import get_next_key, get_next_key_async, async_input
 from game_system.browser_display import set_screen, is_browser_display
 from battle_system.battlesys import BattleSystem
 from battle_system.character import Hero
@@ -26,6 +26,7 @@ class Game:
 
     def __init__(self):
         self.running = True
+        self.exit_to_menu = False
         self.hero = Hero(name="Hero", health=150)
         self.hero.health_bar = HealthBar(self.hero, color="green")
         self.current_village_tile = None  # For village interaction
@@ -47,27 +48,33 @@ class Game:
         """Clears the console screen."""
         clear_console()
 
-    def run(self) -> None:
+    async def run(self) -> None:
         """Runs the main game loop, offering options for new game or seed-based game."""
         try:
             while True:
                 self.clear()
-                menu_choice = handle_menu_input()
+                menu_choice = await handle_menu_input()
                 self.clear()
                 action = menu_choice.get("action")
 
                 if action == "new_game":
+                    self.running = True
+                    self.exit_to_menu = False
                     self.seed = rand.randint(0, self.MAX_SEED_VALUE)
-                    self.start_game()
+                    await self.start_game()
                 elif action == "continue_game":
+                    self.running = True
+                    self.exit_to_menu = False
                     if load_saved_game(self):
-                        self.continue_game_with_map(self.map)
+                        await self.continue_game_with_map(self.map)
                     else:
                         print("Failed to load game. Returning to menu.")
-                        input("Press Enter to continue...")
+                        await async_input("Press Enter to continue...")
                 elif action == "start_with_seed":
+                    self.running = True
+                    self.exit_to_menu = False
                     self.seed = menu_choice["seed"]
-                    self.start_game()
+                    await self.start_game()
                 elif action == "exit":
                     break
         except Exception as e:
@@ -75,14 +82,14 @@ class Game:
             print(f"An error occurred: {e}")
             print("\nDetailed error information:")
             traceback.print_exc()
-            input("\nPress Enter to exit...")
+            await async_input("\nPress Enter to exit...")
             sys.exit(1)
 
-    def set_seed(self):
+    async def set_seed(self):
         """Sets a seed value for the map, with validation for the seed range."""
         while True:
             try:
-                seed_input = int(input(f"Enter seed (0 - {self.MAX_SEED_VALUE}): "))
+                seed_input = int(await async_input(f"Enter seed (0 - {self.MAX_SEED_VALUE}): "))
                 if 0 <= seed_input <= self.MAX_SEED_VALUE:
                     self.seed = seed_input
                     break
@@ -114,7 +121,7 @@ class Game:
             "high": high_tier
         }
 
-    def start_game(self, new_game=True):
+    async def start_game(self, new_game=True):
         """Starts a new game or level, initializing the map with a seed."""
         if new_game:
             self.hero = Hero(name="Hero", health=150)
@@ -154,11 +161,11 @@ class Game:
             self.hero.enemies_killed = 0  # Reset kill counter for new map
             
             # Main game loop
-            self.continue_game_with_map(game_map)
+            await self.continue_game_with_map(game_map)
         except Exception as e:
             print(f"Error during game initialization: {str(e)}")
             print("Returning to main menu...")
-            input("Press Enter to continue...")
+            await async_input("Press Enter to continue...")
             return
 
     def display_player_stats(self, game_map):
@@ -186,7 +193,7 @@ class Game:
             self.clear()
             print(output)
 
-    def handle_game_over(self) -> None:
+    async def handle_game_over(self) -> None:
         """Handles the game-over logic, allowing retries with the same or different seed."""
         if self.seed not in self.game_over_count:
             self.game_over_count[self.seed] = 0
@@ -203,27 +210,27 @@ class Game:
         # Ask for retry or new seed
         while True:
             if retry_allowed:
-                choice = input("Would you like to retry with the same seed (r) or enter a new one (n)? ").lower()
+                choice = (await async_input("Would you like to retry with the same seed (r) or enter a new one (n)? ")).lower()
             else:
-                choice = input("Please enter a new seed (n): ").lower()
+                choice = (await async_input("Please enter a new seed (n): ")).lower()
             if choice == 'r' and retry_allowed:
                 self.running = True
                 break
             elif choice == 'n':
-                self.set_seed()
+                await self.set_seed()
                 self.running = True
                 break
             else:
                 print("Invalid input. Please try again.")
 
-    def display_victory_screen(self):
+    async def display_victory_screen(self):
         """Displays the victory screen."""
         self.clear()
         print("Congratulations! You defeated all enemies.")
-        input("Press Enter to exit...")
+        await async_input("Press Enter to exit...")
         self.running = False
 
-    def move_player(self, game_map: Map):
+    async def move_player(self, game_map: Map):
         """Handles player movement and interactions on the map in real-time."""
         x, y = self.hero.player_pos  # Use hero's position to determine starting point
         print("Use W/A/S/D to move the player, 'I' to access inventory. Press Q to quit.")
@@ -235,7 +242,7 @@ class Game:
             new_x, new_y = x, y
                 
             # Wait for a key from the browser queue or terminal fallback
-            key = get_next_key(timeout=0.05)
+            key = await get_next_key_async(timeout=0.05)
             if key is None:
                 continue
 
@@ -249,16 +256,27 @@ class Game:
             elif key == 'd':
                 new_x, new_y = x, y + 1
             elif key == 'i':
-                self.access_inventory()
+                await self.access_inventory()
                 self.render_game_screen(game_map)
+                continue
+            elif key == 'esc':
+                pause_result = await in_game_menu(self)
+                if pause_result.get("action") == "resume":
+                    self.render_game_screen(game_map)
+                    continue
+                if pause_result.get("action") in {"exit_without_saving", "save_and_exit"}:
+                    self.exit_to_menu = True
+                    self.running = False
+                    return
                 continue
             elif key == 'q':
                 print("Quitting game...")
+                self.exit_to_menu = True
                 self.running = False
                 return
             # Debug command handling - only available when the game is in debug mode
             elif key == '/':
-                self.handle_debug_command(game_map)
+                await self.handle_debug_command(game_map)
                 self.render_game_screen(game_map)
                 continue
             else:
@@ -268,8 +286,8 @@ class Game:
             # Validate movement within map bounds
             if new_x < 0 or new_x >= game_map.height or new_y < 0 or new_y >= game_map.width:
                 self.render_game_screen(game_map, "Invalid move. Stay within bounds.")
-                self.invalid_move(game_map, x, y)
-                time.sleep(0.3)
+                await self.invalid_move(game_map, x, y)
+                await asyncio.sleep(0.3)
                 continue
 
             # Get the tile at the new position
@@ -294,7 +312,7 @@ class Game:
             
             # Check if the tile requires an encounter
             if tile_symbol in encounter_handlers:
-                moved = encounter_handlers[tile_symbol](game_map, new_x, new_y)
+                moved = await encounter_handlers[tile_symbol](game_map, new_x, new_y)
             else:
                 # If no encounter, move the player
                 game_map.update_player_position(x, y, new_x, new_y)
@@ -307,9 +325,9 @@ class Game:
             # Refresh the rendered screen rather than appending output
             self.render_game_screen(game_map)
             # Small delay to prevent multiple key presses being read at once
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
 
-    def handle_debug_command(self, game_map):
+    async def handle_debug_command(self, game_map):
         """Handles debug commands entered by the user."""
         self.clear()
         print("DEBUG MODE ACTIVATED")
@@ -319,22 +337,22 @@ class Game:
         print("  steal_skill_boss - Choose a boss skill to steal")  
         print("  op_init - Give player a high-tier weapon, gold, XP, and items") # New option
         print("  exit - Return to game")
-        debug_cmd = input("Enter debug command: ").strip().lower()
+        debug_cmd = ((await async_input("Enter debug command: "))).strip().lower()
         if debug_cmd == "new_game_debug":
-            self.debug_new_game_cycle(game_map)
+            await self.debug_new_game_cycle(game_map)
         elif debug_cmd == "boss_spawn_debug":
-            self.debug_spawn_boss(game_map)
+            await self.debug_spawn_boss(game_map)
         elif debug_cmd == "steal_skill_boss":  
-            self.debug_steal_skill()
+            await self.debug_steal_skill()
         elif debug_cmd == "op_init":  # New command
-            self.debug_op_init()
+            await self.debug_op_init()
         elif debug_cmd == "exit":
             return
         else:
             print("Unknown debug command")
-            input("Press Enter to continue...")
+            await async_input("Press Enter to continue...")
 
-    def debug_new_game_cycle(self, game_map):
+    async def debug_new_game_cycle(self, game_map):
         """Debug function to simulate completion of a cycle and start a new one."""
         print("DEBUG: Simulating a boss defeat and starting a new game cycle")
         # Increment boss defeated counter
@@ -352,11 +370,11 @@ class Game:
         print(f"DEBUG: Boss #{self.boss_defeated} defeated")
         print(f"DEBUG: Changing seed from {old_seed} to {self.seed}")
         print(f"DEBUG: Setting difficulty multiplier to {self.difficulty_multiplier:.2f}x")
-        input("Press Enter to start the new game cycle...")
+        await async_input("Press Enter to start the new game cycle...")
         # Start the new level with incremented cycle
-        self.start_new_level()
+        await self.start_new_level()
 
-    def debug_spawn_boss(self, game_map):
+    async def debug_spawn_boss(self, game_map):
         """Debug function to spawn the boss shrine."""
         print("DEBUG: Spawning boss shrine")
         # Clear any existing enemies to simulate all enemies defeated
@@ -371,9 +389,9 @@ class Game:
         shrine_coords = self.spawn_shrine(game_map)
         print(f"DEBUG: Shrine spawned at {shrine_coords}")
         print(f"DEBUG: Is final boss: {is_final_boss}")
-        input("Press Enter to continue...")
+        await async_input("Press Enter to continue...")
 
-    def debug_steal_skill(self):
+    async def debug_steal_skill(self):
         """Debug function to steal any boss skill without defeating the boss."""
         from battle_system.skill import BOSS_SKILLS
         self.clear()
@@ -391,7 +409,7 @@ class Game:
         # Get user choice
         while True:
             try:
-                choice = int(input("\nEnter your choice: "))
+                choice = int(await async_input("\nEnter your choice: "))
                 if choice == 0:
                     print("No skill stolen.")
                     break
@@ -400,7 +418,7 @@ class Game:
                     # Confirm stealing due to potential stat penalties
                     costs = ", ".join(f"{k}: {v}" for k, v in selected_skill.stat_cost.items()) if selected_skill.stat_cost else "None"
                     print(f"\nWARNING: Stealing {selected_skill.name} will affect your stats: {costs}")
-                    confirm = input("Are you sure you want to proceed? (y/n): ").lower()
+                    confirm = (await async_input("Are you sure you want to proceed? (y/n): ")).lower()
                     if confirm == 'y':
                         result = self.hero.steal_skill(selected_skill)
                         if result:
@@ -415,9 +433,9 @@ class Game:
                     print("Invalid choice. Please try again.")
             except ValueError:
                 print("Please enter a number.")
-        input("Press Enter to continue...")
+        await async_input("Press Enter to continue...")
 
-    def debug_op_init(self):
+    async def debug_op_init(self):
         """Debug function to give the player powerful starting items."""
         self.clear()
         print("DEBUG: Initializing player with overpowered equipment and stats")
@@ -445,15 +463,15 @@ class Game:
             self.hero.items.append(knife)
         print("Added 6 poison knives")
         print("\nPlayer is now overpowered and ready for battle!")
-        input("Press Enter to continue...")
+        await async_input("Press Enter to continue...")
 
-    def access_inventory(self):
+    async def access_inventory(self):
         """Allows the player to view and use items from their inventory."""
         self.flush_input_buffer()  # Add this line to clear input buffer
         # Use the hero's built-in inventory display method
-        self.hero.display_inventory()
+        await self.hero.display_inventory()
 
-    def enemy_encounter(self, game_map: Map, x: int, y: int) -> bool:
+    async def enemy_encounter(self, game_map: Map, x: int, y: int) -> bool:
         """Handles encounters with enemies."""
         self.clear()  # Clear screen at start of encounter
         self.flush_input_buffer()  # Add this line to clear input buffer
@@ -461,9 +479,9 @@ class Game:
         enemy = next((e for e in game_map.enemies if e.pos == (x, y)), None)
         if enemy:
             battle_system = BattleSystem(self.hero, enemy)
-            battle_system.start_battle()
+            await battle_system.start_battle()
             if not self.hero.alive:
-                self.display_game_over_screen()  
+                await self.display_game_over_screen()  
                 return False  # Never reached if running is False
             # If enemy is defeated, remove it and handle loot.
             if not enemy.alive:
@@ -475,7 +493,7 @@ class Game:
                 game_map.map_data[x][y] = enemy.underlying_tile
                 game_map.enemies.remove(enemy)
                 self.hero.enemies_killed += 1  # Increment kill counter
-                self.handle_loot(enemy)
+                await self.handle_loot(enemy)
                 # Update the player's position on the map after defeating the enemy
                 game_map.update_player_position(self.hero.player_pos[0], self.hero.player_pos[1], x, y)
                 self.hero.player_pos = (x, y)  # Update hero's position
@@ -487,7 +505,7 @@ class Game:
                     print("An ancient evil stirs...".center(50))
                     print("*"*50 + "\n")
                     shrine_coords = self.spawn_shrine(game_map)
-                    input("Press Enter to continue...")
+                    await async_input("Press Enter to continue...")
                     # Find a suitable location for the shrine - place only ONE shrine
                     self.boss_summoned = True
                     # Redraw the map to show the shrine
@@ -496,7 +514,7 @@ class Game:
                     if shrine_coords:
                         print(f"\nA shrine has appeared at position {shrine_coords}!")
                         print("Seek it out to challenge the boss!")
-                    input("Press Enter to continue...")
+                    await async_input("Press Enter to continue...")
                 return True  # Player moves onto the tile
             else:
                 # Player failed to defeat the enemy or escaped.
@@ -515,14 +533,14 @@ class Game:
         print("You encounter a friendly NPC!")
         print("\nNEED TO IMPLEMENT IN FUTURE!")
 
-    def invalid_move(self, game_map: Map, x: int, y: int) -> bool:
+    async def invalid_move(self, game_map: Map, x: int, y: int) -> bool:
         """Handles attempts to move to invalid tiles (e.g., water or lake)."""
         print("You cannot move there.")
         game_map.display_map(self.hero)
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
         return False  # Player does not move onto the tile
 
-    def handle_loot(self, enemy):
+    async def handle_loot(self, enemy):
         """Handles looting after defeating an enemy."""
         self.clear()  # Clear screen at start of loot
         # Handle random item drop
@@ -535,7 +553,7 @@ class Game:
             print("The enemy did not drop any items.")
         # Existing weapon loot code
         print(f"You found {enemy.weapon.name} (Tier: {enemy.tier.capitalize()}) (Damage: {enemy.weapon.damage}). Value: {enemy.weapon.value} gold.")
-        choice = input("Do you want to pick it up or scrap it for gold? (p/s): ").strip().lower()
+        choice = ((await async_input("Do you want to pick it up or scrap it for gold? (p/s): "))).strip().lower()
         if choice == 'p':
             print(f"You picked up {enemy.weapon.name}.")
             self.hero.equip_weapon(enemy.weapon)
@@ -612,14 +630,14 @@ class Game:
             item = None
         return item
 
-    def village_encounter(self, game_map: Map, x: int, y: int) -> bool:
+    async def village_encounter(self, game_map: Map, x: int, y: int) -> bool:
         """Handles encounters with villages."""
         self.clear()  # Clear screen at start of encounter
         self.flush_input_buffer()  # Add this line to clear input buffer
         village_tile = game_map.map_data[x][y]
         if village_tile.visited:
             print("You have already visited this village.")
-            time.sleep(1)
+            await asyncio.sleep(1)
             return False  # Do not move onto the tile again
         else:
             print("You have entered a village!")
@@ -629,14 +647,14 @@ class Game:
             game_map.update_player_position(self.hero.player_pos[0], self.hero.player_pos[1], x, y)
             self.hero.player_pos = (x, y)
             # Now handle the village menu
-            self.village_menu()
+            await self.village_menu()
             # Mark the village as visited after interaction
             village_tile.visited = True
             village_tile.symbol = f"\033[90mV\033[0m"  # Change to gray color
             village_tile.symbol_raw = 'v'  # Lowercase to indicate visited
             return True  # Player is already on the tile
 
-    def village_menu(self):
+    async def village_menu(self):
         """Displays the village menu and handles interactions."""
         print("Welcome to the village!")
         while True:
@@ -646,17 +664,17 @@ class Game:
             print("2. Visit Weapon Shop")
             print("3. Visit Item Shop")
             print("4. Leave Village")
-            choice = input("Choose an action: ").strip()
+            choice = ((await async_input("Choose an action: "))).strip()
             if choice == '1':
                 # Rest and heal the hero
                 self.hero.health = self.hero.health_max
                 print("You are fully healed!")
             elif choice == '2':
                 # Visit the weapon shop
-                self.weapon_shop()
+                await self.weapon_shop()
             elif choice == '3':
                 # Visit the item shop
-                self.item_shop()
+                await self.item_shop()
             elif choice == '4':
                 # Leave the village
                 print("Leaving the village.")
@@ -664,7 +682,7 @@ class Game:
             else:
                 print("Invalid choice. Try again.")
 
-    def weapon_shop(self):
+    async def weapon_shop(self):
         """Handles the weapon shop interactions."""
         print("\nWelcome to the Weapon Shop!")
         print(f"Your gold: {self.hero.cashpile}")  # Show player's gold here
@@ -678,7 +696,7 @@ class Game:
         for idx, weapon in enumerate(weapons_for_sale, 1):
             print(f"{idx}. {weapon.name} (Tier: {weapon.tier.capitalize()}) - Damage: {weapon.damage} - {weapon.value} gold")
         while True:
-            choice = input("\nSelect a weapon to buy or 'b' to go back: ").strip()
+            choice = (await async_input("\nSelect a weapon to buy or 'b' to go back: ")).strip()
             if choice.lower() == 'b':
                 return
             if choice.isdigit():
@@ -687,7 +705,7 @@ class Game:
                     weapon = weapons_for_sale[idx]
                     # Since weapons are unique equipment, we don't need quantity selection
                     if self.hero.cashpile >= weapon.value:
-                        confirm = input(f"Buy {weapon.name} for {weapon.value} gold? (y/n): ").strip().lower()
+                        confirm = ((await async_input(f"Buy {weapon.name} for {weapon.value} gold? (y/n): "))).strip().lower()
                         if confirm == 'y':
                             self.hero.cashpile -= weapon.value
                             self.hero.equip_weapon(weapon)
@@ -702,11 +720,11 @@ class Game:
             else:
                 print("Invalid input.")
             # Ask if player wants to buy another weapon
-            another = input("Would you like to buy another weapon? (y/n): ").strip().lower()
+            another = ((await async_input("Would you like to buy another weapon? (y/n): "))).strip().lower()
             if another != 'y':
                 break
 
-    def item_shop(self):
+    async def item_shop(self):
         """Handles the item shop interactions."""
         print("\nWelcome to the Item Shop!")
         print(f"Your gold: {self.hero.cashpile}")  # Show player's gold here
@@ -722,7 +740,7 @@ class Game:
         for idx, item in enumerate(items_for_sale, 1):
             print(f"{idx}. {item.name} - {item.description} - {item.value} gold")
         while True:
-            choice = input("\nSelect an item to buy or 'b' to go back: ").strip()
+            choice = (await async_input("\nSelect an item to buy or 'b' to go back: ")).strip()
             if choice.lower() == 'b':
                 return
             if choice.isdigit():
@@ -731,13 +749,13 @@ class Game:
                     item = items_for_sale[idx]
                     # Ask for quantity
                     try:
-                        quantity = int(input(f"How many {item.name} would you like to buy? ").strip())
+                        quantity = int(((await async_input(f"How many {item.name} would you like to buy? "))).strip())
                         if quantity <= 0:
                             print("Please enter a positive number.")
                             continue
                         total_cost = item.value * quantity
                         if self.hero.cashpile >= total_cost:
-                            confirm = input(f"Buy {quantity} {item.name} for {total_cost} gold? (y/n): ").strip().lower()
+                            confirm = ((await async_input(f"Buy {quantity} {item.name} for {total_cost} gold? (y/n): "))).strip().lower()
                             if confirm == 'y':
                                 self.hero.cashpile -= total_cost
                                 for _ in range(quantity):
@@ -763,18 +781,18 @@ class Game:
             else:
                 print("Invalid input.")
             # Ask if player wants to buy another item
-            another = input("Would you like to buy another item? (y/n): ").strip().lower()
+            another = ((await async_input("Would you like to buy another item? (y/n): "))).strip().lower()
             if another != 'y':
                 break
 
-    def treasure_encounter(self, game_map: Map, x: int, y: int) -> bool:
+    async def treasure_encounter(self, game_map: Map, x: int, y: int) -> bool:
         """Handles encounters with treasures."""
         self.clear()  # Clear screen at start of encounter
         self.flush_input_buffer()  # Add this line to clear input buffer
         treasure_tile = game_map.map_data[x][y]
         if treasure_tile.visited:
             print("This treasure chest has already been looted.")
-            time.sleep(1)
+            await asyncio.sleep(1)
             return False  # Do not move onto the tile again
         else:
             print("You found a treasure chest!")
@@ -805,7 +823,7 @@ class Game:
                 print(f"\nYou found a {weapon.name} (Damage: {weapon.damage})!")
                 print(f"Your current weapon: {self.hero.weapon.name} (Damage: {self.hero.weapon.damage})")
                 
-                choice = input("Take the weapon? (y/n): ").lower()
+                choice = (await async_input("Take the weapon? (y/n): ")).lower()
                 if choice == 'y':
                     self.hero.equip_weapon(weapon)
                     print(f"You equipped {weapon.name}.")
@@ -854,7 +872,7 @@ class Game:
             treasure_tile.symbol_raw = 't'  # Lowercase to indicate looted
             
             # Add a pause so the player can read the message
-            input("\nPress Enter to continue...")
+            await async_input("\nPress Enter to continue...")
             return True
 
     def spawn_shrine(self, game_map):
@@ -874,7 +892,7 @@ class Game:
             print("A mysterious shrine has appeared on the map!")
         return shrine_coords
 
-    def shrine_encounter(self, game_map: Map, x: int, y: int) -> bool:
+    async def shrine_encounter(self, game_map: Map, x: int, y: int) -> bool:
         """Handles the shrine encounter leading to a boss battle."""
         try:
             self.clear()  # Clear screen at start of encounter
@@ -916,9 +934,9 @@ class Game:
                                 cooldown_reduction = min(1, self.cycle * 0.1)
                                 skill.cooldown = max(1, skill.cooldown - cooldown_reduction)
                 battle_system = BattleSystem(self.hero, boss)
-                battle_system.start_battle()
+                await battle_system.start_battle()
                 if not self.hero.alive:
-                    self.display_game_over_screen()
+                    await self.display_game_over_screen()
                     return False
                 if not boss.alive:
                     self.clear()
@@ -928,7 +946,7 @@ class Game:
                     # Handle boss weapon drop first:
                     if hasattr(boss, 'weapon') and boss.weapon:
                         print(f"The boss dropped its weapon: {boss.weapon.name} (Damage: {boss.weapon.damage}) (Value: {boss.weapon.value} gold)")
-                        choice = input("Do you want to pick it up or scrap it for gold? (p/s): ").strip().lower()
+                        choice = ((await async_input("Do you want to pick it up or scrap it for gold? (p/s): "))).strip().lower()
                         if choice == 'p':
                             print(f"You picked up {boss.weapon.name}.")
                             self.hero.equip_weapon(boss.weapon)
@@ -947,7 +965,7 @@ class Game:
                         print("0. Don't steal any skill")
                         while True:
                             try:
-                                choice = int(input("\nEnter your choice: "))
+                                choice = int(await async_input("\nEnter your choice: "))
                                 if choice == 0:
                                     print("You decided not to steal any skills.")
                                     break
@@ -957,7 +975,7 @@ class Game:
                                     if hasattr(selected_skill, 'stat_cost') and selected_skill.stat_cost:
                                         costs = ", ".join(f"{k}: {v}" for k, v in selected_skill.stat_cost.items())
                                         print(f"\nWARNING: Stealing {selected_skill.name} will permanently affect your stats: {costs}")
-                                        confirm = input("Are you sure you want to proceed? (y/n): ").lower()
+                                        confirm = (await async_input("Are you sure you want to proceed? (y/n): ")).lower()
                                         if confirm == 'y':
                                             self.hero.steal_skill(selected_skill)
                                             break
@@ -983,7 +1001,7 @@ class Game:
                     self.boss_summoned = False  # Reset for next level
                     # If all bosses defeated, show final victory screen and end game
                     if self.boss_defeated >= self.total_bosses:
-                        self.display_final_victory_screen()
+                        await self.display_final_victory_screen()
                         self.running = False
                         return True
                     # Transition message to next map
@@ -994,7 +1012,7 @@ class Game:
                     print(f"You feel yourself growing stronger for New Game+{self.cycle + 1}".center(50))
                     print("*"*50 + "\n")
                     # Progress to next map with adjusted enemy counts
-                    self.display_level_up_message()
+                    await self.display_level_up_message()
                     self.seed = rand.randint(0, self.MAX_SEED_VALUE)  # Generate new seed for next level
                     # Update difficulty for next level
                     self.current_low_tier_enemies = max(1, self.current_low_tier_enemies - 1)
@@ -1003,18 +1021,18 @@ class Game:
                     self.difficulty_multiplier = 1.0 + ((self.cycle + 1) * 0.2)  # Increases by 20% per cycle
                     print(f"Generating new map with seed: {self.seed}")
                     # Don't increment cycle here - it will be done in start_new_level
-                    self.start_new_level()  # This will increment cycle and create new map
+                    await self.start_new_level()  # This will increment cycle and create new map
                     return False  # Return false to prevent normal movement processing
                 return False
         except IndexError as e:
             print(f"Error accessing shrine at position ({x}, {y}): {e}")
             print("Please report this bug with the seed number.")
-            input("Press Enter to continue...")
+            await async_input("Press Enter to continue...")
             return False
         except Exception as e:
             print(f"Unexpected error in shrine encounter: {e}")
             traceback.print_exc()
-            input("Press Enter to continue...")
+            await async_input("Press Enter to continue...")
             return False
 
     def scale_enemy_stats(self, enemy):
@@ -1034,7 +1052,7 @@ class Game:
             enemy.scale_stats(multiplier)
             print(f"{enemy.name}'s stats have been scaled by {multiplier:.2f}x for New Game+{self.cycle}")
 
-    def display_final_victory_screen(self):
+    async def display_final_victory_screen(self):
         """Displays the final victory screen after defeating all bosses."""
         self.clear()
         print("""
@@ -1048,9 +1066,9 @@ class Game:
         *                                                  *
         ****************************************************
         """)
-        input("Press Enter to quit...")
+        await async_input("Press Enter to quit...")
 
-    def start_new_level(self):
+    async def start_new_level(self):
         """Starts a new level with increased difficulty."""
         self.cycle += 1  # Increment cycle once here
         self.clear()
@@ -1088,22 +1106,23 @@ class Game:
         game_map.display_map(self.hero)
         self.display_player_stats(game_map)
         print("\nWelcome to the next level! Use WASD to move.")
-        input("Press Enter to continue...")
+        await async_input("Press Enter to continue...")
         
         # Continue the game with the new map
-        self.continue_game_with_map(game_map)
+        await self.continue_game_with_map(game_map)
 
-    def continue_game_with_map(self, game_map):
+    async def continue_game_with_map(self, game_map):
         """Continues the game with the provided map."""
         # Main game loop for the new map
+        self.map = game_map
         while self.running:
             self.render_game_screen(game_map)
-            self.move_player(game_map)  # Handle player movement
+            await self.move_player(game_map)  # Handle player movement
             self.after_turn(self.hero, game_map)
-        if not is_browser_display():
+        if not is_browser_display() and not self.exit_to_menu:
             print("Game Over. Thanks for playing!")
 
-    def display_level_up_message(self):
+    async def display_level_up_message(self):
         """Displays a message after defeating a boss."""
         self.clear()
         print(f"You have defeated {self.boss_defeated} out of {self.total_bosses} bosses.")
@@ -1111,9 +1130,9 @@ class Game:
             print("Prepare yourself for the next challenge!")
         else:
             print("Congratulations! You have defeated all the bosses!")
-        input("Press Enter to continue...")
+        await async_input("Press Enter to continue...")
 
-    def display_game_over_screen(self):
+    async def display_game_over_screen(self):
         self.clear()
         print("""
         ******************************************************
@@ -1122,7 +1141,7 @@ class Game:
         *                                                    *
         ******************************************************
         """)
-        input("Press Enter to return to the main menu...")
+        await async_input("Press Enter to return to the main menu...")
         self.running = False
         self.hero = Hero(name="Hero", health=150)
         self.hero.health_bar = HealthBar(self.hero, color="green")
@@ -1132,13 +1151,13 @@ class Game:
         # We now handle this directly in enemy_encounter, so this method can be empty
         pass
 
-    def boss_defeat_handler(self, boss):
+    async def boss_defeat_handler(self, boss):
         """Handle boss defeat, skill learning, and loot drops."""
         print(f"You have defeated {boss.name}!")
         # 1. Offer skill choice first
-        learned = self.offer_boss_skill(boss)
+        learned = await self.offer_boss_skill(boss)
         # 2. Handle weapon drop and other loot
-        self.handle_boss_loot(boss)
+        await self.handle_boss_loot(boss)
         # 3. Update boss counter and prepare for next cycle if needed
         self.bosses_defeated += 1
         if self.bosses_defeated >= 10:  # All bosses defeated
@@ -1148,7 +1167,7 @@ class Game:
             print("Prepare yourself for the next challenge!")
         return learned
 
-    def offer_boss_skill(self, boss):
+    async def offer_boss_skill(self, boss):
         """Offer the player a choice of skills to learn from the defeated boss."""
         if not boss.skills:
             print("This boss had no skills to learn.")
@@ -1163,7 +1182,7 @@ class Game:
         if not valid_skills:
             print("No learnable skills available.")
             return False
-        choice = input("\nChoose a skill to learn (or press Enter to skip): ")
+        choice = await async_input("\nChoose a skill to learn (or press Enter to skip): ")
         if not choice.strip():
             print("You chose not to learn any skill.")
             return False
@@ -1183,15 +1202,15 @@ class Game:
                     return True
                 else:
                     print("You already know this skill!")
-                    return self.offer_boss_skill(boss)  # Recursive call to offer choice again
+                    return await self.offer_boss_skill(boss)  # Recursive call to offer choice again
             else:
                 print("Invalid choice.")
-                return self.offer_boss_skill(boss)  # Recursive call to offer choice again
+                return await self.offer_boss_skill(boss)  # Recursive call to offer choice again
         except ValueError:
             print("Invalid input.")
-            return self.offer_boss_skill(boss)  # Recursive call to offer choice again
+            return await self.offer_boss_skill(boss)  # Recursive call to offer choice again
 
-    def handle_boss_loot(self, boss):
+    async def handle_boss_loot(self, boss):
         """Handle loot drops from the boss."""
         # Handle boss weapon - ensure it has value scaled by cycle
         if hasattr(boss, 'weapon') and boss.weapon:
@@ -1201,7 +1220,7 @@ class Game:
             print(f"\nThe boss dropped: {boss.weapon.name}")
             print(f"Value: {boss.weapon.value} gold")
             print(f"Damage: {boss.weapon.damage}")
-            choice = input("Do you want to pick up this weapon? (y/n): ").lower()
+            choice = ((await async_input("Do you want to pick up this weapon? (y/n): "))).lower()
             if choice == 'y':
                 self.hero.equip_weapon(boss.weapon)
             else:
@@ -1218,13 +1237,19 @@ class Game:
         flush_input_buffer()
 
 
+async def start_app():
+    game = Game()
+    await game.run()
+
 if __name__ == "__main__":
     try:
-        game = Game()
-        game.run()
+        if is_browser_display():
+            asyncio.ensure_future(start_app())
+        else:
+            asyncio.run(start_app())
     except Exception as e:
         print(f"Fatal error occurred: {e}")
         print("\nDetailed error information:")
         traceback.print_exc()
-        input("\nPress Enter to exit...")
+        asyncio.run(async_input("\nPress Enter to exit..."))
         sys.exit(1)
