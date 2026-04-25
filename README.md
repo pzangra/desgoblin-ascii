@@ -16,6 +16,6 @@ A retro ASCII-based RPG built in Python and deployed as a dynamic web experience
 3. install requirements
   > pip install --upgrade pip
   > pip install -r requirements.txt
-5. execute code
+4. execute code
   >python3 src/main.py
 
