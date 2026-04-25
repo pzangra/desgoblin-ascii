@@ -93,12 +93,12 @@ def generate_throwable(tier: str) -> Throwable:
     name = throwable_names.get(tier, "Unknown Throwable")
     description = "Deals damage to an enemy."
     damage = {
-        "small": 10,
-        "mids": 20,
-        "midh": 35,
-        "large": 50,
-        "superior": 75
-    }.get(tier, 0)
+        "small": 30,
+        "mids": 60,
+        "midh": 100,
+        "large": 150,
+        "superior": 250
+    }.get(tier, 30)
     value = damage  # For simplicity, value equals damage
     return Throwable(name, description, tier, value, damage)
 

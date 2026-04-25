@@ -168,17 +168,22 @@ def generate_enemy(tier: str, cycle: int = 0) -> Enemy:
         raise ValueError("Invalid tier for enemy generation")
     name = choice(names)
     
-    health_ranges = {"low": (10, 30), "mid": (40, 80), "high": (80, 120)}
+    base_hp = 50 + (cycle * 25)
+    if tier == "low":
+        health = int(base_hp * 0.7)
+    elif tier == "high":
+        health = int(base_hp * 1.4)
+    else: # mid
+        health = int(base_hp * 1.0)
+        
     evade_ch_ranges = {"low": (0, 5), "mid": (5, 10), "high": (10, 15)}
     crit_ch_ranges = {"low": (5, 8), "mid": (8, 12), "high": (12, 20)}
     armor_ranges = {"low": (0, 2), "mid": (2, 6), "high": (6, 12)}
 
-    health = randint(*health_ranges[tier])
     evade_ch = randint(*evade_ch_ranges[tier])
     crit_ch = randint(*crit_ch_ranges[tier])
     armor = randint(*armor_ranges[tier])
 
-    health = int(health * (1 + 0.2 * cycle))
     evade_ch = int(evade_ch * (1 + 0.1 * cycle))
     crit_ch = int(crit_ch * (1 + 0.1 * cycle))
     armor = int(armor * (1 + 0.1 * cycle))

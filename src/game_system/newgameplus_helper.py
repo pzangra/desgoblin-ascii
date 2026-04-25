@@ -29,8 +29,8 @@ def get_weapon_scaling(cycle):
     Returns:
         float: Multiplier for weapon damage
     """
-    # Base scaling is 1.0, with 15% increase per cycle
-    return 1.0 + (cycle * 0.15)
+    # Base scaling is 1.0, with 20% increase per cycle
+    return 1.0 + (cycle * 0.2)
 
 def generate_scaled_weapon(tier, cycle):
     """

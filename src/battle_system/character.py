@@ -16,6 +16,8 @@ class Character(ABC):
         self.name = name
         self.health = health
         self.health_max = health
+        self.mana_max = 50
+        self.mana = self.mana_max
         self.evade_ch = evade_ch  # Evade chance percentage
         self.crit_ch = crit_ch    # Critical hit chance percentage
         self.armor = armor        # Damage reduction
@@ -177,15 +179,15 @@ class Hero(Character):
         self.experience -= self.experience_to_next_level
         self.level += 1
         self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
-        self.health_max += 10
+        self.health_max += 15
         self.health = self.health_max
-        self.mp_max += 5  # Increase MP as well
-        self.mp = self.mp_max
+        self.mana_max += 5
+        self.mana = self.mana_max
         self.evade_ch += 1
         self.crit_ch += 1
-        self.armor += 1
+        self.armor += 2
         print(f"{self.name} leveled up to level {self.level}!")
-        print("Stats increased: Health +10, MP +5, Evade Chance +1%, Crit Chance +1%, Armor +1")
+        print("Stats increased: Health +15, MP +5, Evade Chance +1%, Crit Chance +1%, Armor +2")
         
         # Learn new skills at specific levels
         if self.level == 3:

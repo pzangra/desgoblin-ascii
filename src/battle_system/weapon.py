@@ -14,7 +14,7 @@ class Weapon:
         self.dmg_max = int(damage * 1.3)  # Maximum damage (130% of base damage)
         self.value = value
         self.tier = tier
-        self.cycle = cycle  # Added cycle attribute
+        self.cycle = cycle  
 
     def get_display_name(self):
         """Returns the weapon name adjusted for the cycle."""
@@ -54,12 +54,18 @@ def generate_weapon(tier: str, cycle: int = 0) -> Weapon:
     # Select a random weapon from the tier's weapon list
     weapon_template = choice(weapon_list)
     
-    # Generate damage and value within the tier's range
-    damage = randint(*stats['damage_range'])
-    value = randint(*stats['value_range'])
-    # Scale damage and value with cycle
-    damage = int(damage * (1 + 0.2 * cycle))
-    value = int(value * (1 + 0.2 * cycle))
+    # Generate damage and value based on new game cycle and weapon tier
+    base_damage = 10 + (cycle * 5)
+    
+    if tier == "low":
+        damage = int(base_damage * 0.8)
+        value = 10 + (cycle * 10)
+    elif tier == "high":
+        damage = int(base_damage * 1.2)
+        value = 50 + (cycle * 20)
+    else: # mid
+        damage = int(base_damage * 1.0)
+        value = 25 + (cycle * 15)
     # Adjust weapon name
     weapon_name = weapon_template.name
     if cycle == 1:
@@ -82,7 +88,9 @@ def scale_weapon_for_cycle(weapon, cycle):
     """Scales a weapon's stats based on the New Game+ cycle."""
     if not hasattr(weapon, 'cycle_scaled') or not weapon.cycle_scaled:
         # Scale damage
-        weapon.damage = int(weapon.damage * (1 + 0.2 * cycle))
+        base_damage = 10 + (cycle * 5)
+        tier_mult = 0.8 if weapon.tier == "low" else (1.2 if weapon.tier == "high" else 1.0)
+        weapon.damage = int(base_damage * tier_mult)
         weapon.dmg_min = int(weapon.dmg_min * (1 + 0.2 * cycle))
         weapon.dmg_max = int(weapon.dmg_max * (1 + 0.2 * cycle))
         

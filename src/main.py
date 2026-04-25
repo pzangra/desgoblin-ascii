@@ -799,7 +799,7 @@ class Game:
                 
                 # Apply cycle bonus if available
                 if self.cycle > 0:
-                    damage_modifier = 1.0 + (self.cycle * 0.15)  # 15% more damage per cycle
+                    damage_modifier = 1.0 + (self.cycle * 0.20)  # 15% more damage per cycle
                     weapon.damage = int(weapon.damage * damage_modifier)
                 
                 print(f"\nYou found a {weapon.name} (Damage: {weapon.damage})!")
@@ -1023,11 +1023,11 @@ class Game:
             # Implement a piecewise function for enemy stats
             if self.cycle <= 5:
                 # Cycles 1-5: Linear phase
-                multiplier = 1 + (self.cycle * 0.15)
+                multiplier = 1 + (self.cycle * 0.20)
             else:
                 # Cycles 6+: Exponential phase
                 # Base linear scaling + exponential component
-                linear_part = 1 + (self.cycle * 0.15)
+                linear_part = 1 + (self.cycle * 0.20)
                 exponential_part = 0.02 * (self.cycle ** 2)
                 multiplier = linear_part + exponential_part
             # Apply scaling to enemy stats
