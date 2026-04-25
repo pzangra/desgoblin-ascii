@@ -1,4 +1,4 @@
-# game_system/main.py
+# src/main.py
 
 import sys
 import time
