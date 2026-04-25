@@ -4,7 +4,7 @@ A retro ASCII-based RPG built in Python and deployed as a dynamic web experience
 
 ## Play in Browser
 
-Launch the game here: https://namurz.github.io/desgoblin-ascii/
+Launch the game here: https://pzangra.github.io/desgoblin-ascii/
 
 ## Infrastructure
 - **Logic:** Python 3.12+
