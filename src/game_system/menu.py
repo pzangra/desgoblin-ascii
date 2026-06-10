@@ -15,11 +15,12 @@ if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
 def get_main_menu_options():
-    """Build the main menu options list."""
     options = ["New Game"]
-    has_save = has_saved_game()
-    if has_save:
-        options.append("Continue Game")
+    if has_saved_game():
+        options.append("Continue Game")  # loads default/autosave
+    saves = list_saves()
+    if saves:
+        options.append("Load Save")      # pick from named saves
     options.extend(["Start with Seed", "Options", "Exit"])
     return options
 
@@ -49,6 +50,16 @@ async def handle_menu_input():
 
         elif action == "continue_game":
             return {"action": "continue_game"}
+        
+        elif action == "load_save":
+            saves = list_saves()
+            if not saves:
+                await show_message("No Saves", "No save files found.")
+                continue
+            load_choice = await get_menu_choice("Select save", saves + ["Cancel"])
+            if load_choice is None or load_choice == len(saves):
+                continue
+            return {"action": "load_save", "save_name": saves[load_choice]}
 
         elif action == "start_with_seed":
             seed_input = await get_text_input("Enter seed (numbers only): ", max_length=10)
@@ -157,7 +168,7 @@ async def in_game_menu(game):
             from game_system.save_manager import load_saved_game
             if load_saved_game(game, save_path=path):
                 await show_message("Loaded", f"'{selected_name}' loaded. Resuming game.")
-                return {"action": "resume"}
+                return {"action": "reload"}
             else:
                 await show_message("Error", "Failed to load save.")
 

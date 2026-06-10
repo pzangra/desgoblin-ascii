@@ -7,7 +7,7 @@ import traceback
 
 # Absolute imports from the desgoblin_ascii package
 from map_system.map import Map
-from game_system.menu import handle_menu_input, in_game_menu
+from game_system.menu import handle_menu_input, in_game_menu, save_path_for_name
 from game_system.save_manager import load_saved_game
 from game_system.cli_utils import clear_console, flush_input_buffer
 from game_system.browser_input import get_next_key, get_next_key_async, async_input
@@ -69,6 +69,15 @@ class Game:
                         await self.continue_game_with_map(self.map)
                     else:
                         print("Failed to load game. Returning to menu.")
+                        await async_input("Press Enter to continue...")
+                elif action == "load_save":
+                    self.running = True
+                    self.exit_to_menu = False
+                    path = save_path_for_name(menu_choice["save_name"])
+                    if load_saved_game(self, save_path=path):
+                        await self.continue_game_with_map(self.map)
+                    else:
+                        print("Failed to load. Returning to menu.")
                         await async_input("Press Enter to continue...")
                 elif action == "start_with_seed":
                     self.running = True
@@ -274,6 +283,8 @@ class Game:
                 if pause_result.get("action") in {"exit_without_saving", "save_and_exit"}:
                     self.exit_to_menu = True
                     self.running = False
+                    return
+                if pause_result.get("action") == "reload":
                     return
                 if pause_result.get("action") == "resume":
                     self.render_game_screen(game_map)
@@ -1120,6 +1131,7 @@ class Game:
         # Main game loop for the new map
         self.map = game_map
         while self.running:
+            game_map = self.map
             self.render_game_screen(game_map)
             await self.move_player(game_map)  # Handle player movement
             self.after_turn(self.hero, game_map)
