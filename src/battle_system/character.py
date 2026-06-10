@@ -302,19 +302,19 @@ class Hero(Character):
                     print("Invalid choice. Please try again.")
                     
             elif current_menu == "stats":
-                self.display_stats_menu()
+                await self.display_stats_menu()
                 current_menu = "main"
                 
             elif current_menu == "equipment":
-                self.display_equipment_menu()
+                await self.display_equipment_menu()
                 current_menu = "main"
                 
             elif current_menu == "satchel":
-                self.display_satchel_menu()
+                await self.display_satchel_menu()
                 current_menu = "main"
                 
             elif current_menu == "skills":
-                self.display_skills_menu()  # New skills menu
+                await self.display_skills_menu()  # New skills menu
                 current_menu = "main"
     
     async def display_stats_menu(self):
@@ -388,31 +388,40 @@ class Hero(Character):
     
     async def display_satchel_menu(self):
         """Display satchel/inventory items menu."""
-        print("\n" + "-"*50)
-        print("Satchel".center(50))
-        print("-"*50)
-        
-        if self.items:
+        while True:
+            print("\n" + "-"*50)
+            print("Satchel".center(50))
+            print("-"*50)
+
+            if not self.items:
+                print("Your satchel is empty.")
+                await async_input("\nPress Enter to return to main menu...")
+                return
+
             print("Your items:")
             for i, item in enumerate(self.items, 1):
                 print(f"{i}: {item.name} - {item.description if hasattr(item, 'description') else ''}")
-            
+
             print("\nEnter item number to use it, or 0 to go back")
             choice = await async_input("Choice: ")
-            
+
             try:
-                item_index = int(choice) - 1
+                idx = int(choice)
+                if idx == 0:
+                    return
+                item_index = idx - 1
                 if 0 <= item_index < len(self.items):
-                    # Here you would implement item usage logic
-                    print(f"Using {self.items[item_index].name}...")
-                    # self.use_item(item_index)
-                elif int(choice) != 0:
+                    item = self.items[item_index]
+                    if isinstance(item, Throwable):
+                        print(f"{item.name} can only be used in battle.")
+                    else:
+                        item.use(self)
+                        self.items.pop(item_index)
+                        print(f"Used {item.name}.")
+                else:
                     print("Invalid item number.")
             except ValueError:
                 print("Invalid input.")
-        else:
-            print("Your satchel is empty.")
-            await async_input("\nPress Enter to return to main menu...")
     
     def check_all_enemies_defeated(self, game_map):
         """Check if all enemies are defeated and spawn shrine if needed."""
