@@ -5,6 +5,7 @@ import random
 from battle_system.weapon import Weapon, generate_weapon
 from battle_system.health_bar import HealthBar
 from battle_system.weapon import *
+from battle_system.item import Throwable
 from battle_system.skill import PLAYER_SKILLS, Skill
 from game_system.browser_input import async_input
 
