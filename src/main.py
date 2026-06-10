@@ -270,10 +270,14 @@ class Game:
                     return
                 continue
             elif key == 'q':
-                print("Quitting game...")
-                self.exit_to_menu = True
-                self.running = False
-                return
+                pause_result = await in_game_menu(self)
+                if pause_result.get("action") in {"exit_without_saving", "save_and_exit"}:
+                    self.exit_to_menu = True
+                    self.running = False
+                    return
+                if pause_result.get("action") == "resume":
+                    self.render_game_screen(game_map)
+                continue
             # Debug command handling - only available when the game is in debug mode
             elif key == '/':
                 await self.handle_debug_command(game_map)

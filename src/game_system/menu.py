@@ -5,7 +5,7 @@ import json
 from game_system.browser_menu import get_menu_choice, get_text_input, show_message, show_yes_no_prompt, render_menu
 from game_system.browser_display import is_browser_display, clear_terminal
 from game_system.browser_input import peek_key
-from game_system.save_manager import has_saved_game, load_raw_save_state, save_game_state
+from game_system.save_manager import has_saved_game, load_raw_save_state, save_game_state, list_saves, save_path_for_name
 
 SAVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saves")
 OPTIONS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game_options.json")
@@ -112,27 +112,58 @@ def save_options(options):
         json.dump(options, f)
 
 async def in_game_menu(game):
-    """Display the in-game menu when ESC is pressed."""
-    menu_options = ["Continue", "Options", "Exit without saving", "Save and exit"]
-
+    """Display the in-game menu when Q is pressed."""
     while True:
+        menu_options = [
+            "Return to game",
+            "Save with name",
+            "Save and quit",
+            "Load save",
+            "Exit without saving",
+        ]
         choice_idx = await get_menu_choice("Game Menu", menu_options)
 
         if choice_idx is None or choice_idx == 0:
             return {"action": "resume"}
 
-        elif choice_idx == 1:
-            await show_options_menu()
+        elif choice_idx == 1:  # Save with name
+            name = await get_text_input("Enter save name: ", max_length=30)
+            if name and name.strip():
+                path = save_path_for_name(name.strip())
+                save_game_state(game, save_path=path)
+                await show_message("Saved", f"Game saved as '{name.strip()}'.")
+            else:
+                await show_message("Cancelled", "Save cancelled.")
+            # Stay in menu after saving
 
-        elif choice_idx == 2:
+        elif choice_idx == 2:  # Save and quit
+            name = await get_text_input("Enter save name (leave blank for 'autosave'): ", max_length=30)
+            save_name = name.strip() if name and name.strip() else "autosave"
+            path = save_path_for_name(save_name)
+            save_game_state(game, save_path=path)
+            await show_message("Saved", f"Game saved as '{save_name}'. Returning to menu.")
+            return {"action": "save_and_exit"}
+
+        elif choice_idx == 3:  # Load save
+            saves = list_saves()
+            if not saves:
+                await show_message("No Saves", "No save files found.")
+                continue
+            load_choice = await get_menu_choice("Select save to load", saves + ["Cancel"])
+            if load_choice is None or load_choice == len(saves):
+                continue  # Cancelled
+            selected_name = saves[load_choice]
+            path = save_path_for_name(selected_name)
+            from game_system.save_manager import load_saved_game
+            if load_saved_game(game, save_path=path):
+                await show_message("Loaded", f"'{selected_name}' loaded. Resuming game.")
+                return {"action": "resume"}
+            else:
+                await show_message("Error", "Failed to load save.")
+
+        elif choice_idx == 4:  # Exit without saving
             if await show_yes_no_prompt("Confirm Exit", "Exit to main menu without saving?"):
                 return {"action": "exit_without_saving"}
-
-        elif choice_idx == 3:
-            if await show_yes_no_prompt("Confirm Save and Exit", "Save current run and return to main menu?"):
-                save_game(game)
-                await show_message("Save and Exit", "Game state saved. Returning to main menu.")
-                return {"action": "save_and_exit"}
 
 def save_game(game):
     """Save current game state to file."""

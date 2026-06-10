@@ -240,6 +240,23 @@ def _restore_skills(saved_names: List[str]) -> List[object]:
             restored.append(lookup[skill_name])
     return restored
 
+def list_saves() -> list[str]:
+    """Return a list of save names (filenames without .json extension)."""
+    if is_browser_display():
+        return []
+    _ensure_save_dir()
+    return [
+        f[:-5]  # strip .json
+        for f in os.listdir(SAVE_DIR)
+        if f.endswith(".json")
+    ]
+
+def save_path_for_name(name: str) -> str:
+    """Return the full path for a named save file."""
+    safe_name = "".join(c for c in name if c.isalnum() or c in (' ', '_', '-')).strip()
+    if not safe_name:
+        safe_name = "unnamed"
+    return os.path.join(SAVE_DIR, f"{safe_name}.json")
 
 def load_saved_game(game, save_path: Optional[str] = None) -> bool:
     """Load a saved game state into an existing Game instance."""
