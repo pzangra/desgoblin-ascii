@@ -1,15 +1,10 @@
 # Desgoblin ASCII
 
-A retro ASCII-based RPG built in Python and deployed as a dynamic web experience.
-
-## Play in Browser
-
-Launch the game here: https://pzangra.github.io/desgoblin-ascii/
+A retro ASCII-based RPG built in Python.
 
 ## Infrastructure
 - **Logic:** Python 3.12+
-- **Frontend:** PyScript (Python in the Browser)
-- **CI/CD:** GitHub Actions (Auto-deploy to GitHub Pages)
+- **Frontend:** PyScript 
 
 ## How to Play
 
