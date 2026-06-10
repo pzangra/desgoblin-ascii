@@ -230,30 +230,73 @@
     </script>
 
     <py-config>
-        packages = ["noise"]
-        fetch = [
-            {"from": "./src", "to_folder": "src", "files": ["*.py", "*.json"]},
-            {"from": "./src/battle_system", "to_folder": "src/battle_system", "files": ["*.py"]},
-            {"from": "./src/game_system", "to_folder": "src/game_system", "files": ["*.py"]},
-            {"from": "./src/map_system", "to_folder": "src/map_system", "files": ["*.py"]},
-            {"from": "./src/data", "to_folder": "src/data", "files": ["*.json"]}
-        ]
+        {
+            "files": {
+                "./src/__init__.py": "/src/__init__.py",
+                "./src/main.py": "/src/main.py",
+                "./src/game_options.json": "/src/game_options.json",
+
+                "./src/battle_system/__init__.py": "/src/battle_system/__init__.py",
+                "./src/battle_system/battlesys.py": "/src/battle_system/battlesys.py",
+                "./src/battle_system/character.py": "/src/battle_system/character.py",
+                "./src/battle_system/enemy.py": "/src/battle_system/enemy.py",
+                "./src/battle_system/health_bar.py": "/src/battle_system/health_bar.py",
+                "./src/battle_system/item.py": "/src/battle_system/item.py",
+                "./src/battle_system/main_battlesys.py": "/src/battle_system/main_battlesys.py",
+                "./src/battle_system/skill.py": "/src/battle_system/skill.py",
+                "./src/battle_system/weapon.py": "/src/battle_system/weapon.py",
+
+                "./src/game_system/__init__.py": "/src/game_system/__init__.py",
+                "./src/game_system/browser_display.py": "/src/game_system/browser_display.py",
+                "./src/game_system/browser_input.py": "/src/game_system/browser_input.py",
+                "./src/game_system/browser_menu.py": "/src/game_system/browser_menu.py",
+                "./src/game_system/cli_utils.py": "/src/game_system/cli_utils.py",
+                "./src/game_system/menu.py": "/src/game_system/menu.py",
+                "./src/game_system/newgameplus_helper.py": "/src/game_system/newgameplus_helper.py",
+                "./src/game_system/save_manager.py": "/src/game_system/save_manager.py",
+
+                "./src/map_system/__init__.py": "/src/map_system/__init__.py",
+                "./src/map_system/main_mapsys.py": "/src/map_system/main_mapsys.py",
+                "./src/map_system/map.py": "/src/map_system/map.py",
+                "./src/map_system/noise_utils.py": "/src/map_system/noise_utils.py",
+                "./src/map_system/tiles.py": "/src/map_system/tiles.py",
+
+                "./src/data/bosses.json": "/src/data/bosses.json",
+                "./src/data/enemies.json": "/src/data/enemies.json",
+                "./src/saves/save_game.json": "/src/saves/save_game.json"
+            }
+        }
     </py-config>
 
     <script type="py">
         import asyncio
+        import os
         import sys
         import traceback
-        from js import window
+        from js import console, window
         from pyscript import display
 
         sys.path.insert(0, "/src")
 
         def print_to_web(*args):
-            display(" ".join(map(str, args)), target="terminal", append=True)
+            message = " ".join(map(str, args))
+            display(message, target="terminal", append=True)
+            console.log(message)
 
         print_to_web("\n[SYSTEM]: Initializing game modules...")
         print_to_web("[SYSTEM]: PyScript runtime loaded.")
+
+        print_to_web("[DEBUG] url:", window.location.href)
+        print_to_web("[DEBUG] pathname:", window.location.pathname)
+        print_to_web("[DEBUG] baseURI:", window.document.baseURI)
+
+        print_to_web("[DEBUG] /src exists:", os.path.exists("/src"))
+        print_to_web("[DEBUG] /src/main.py exists:", os.path.exists("/src/main.py"))
+
+        try:
+            print_to_web("[DEBUG] /src entries:", os.listdir("/src"))
+        except Exception as exc:
+            print_to_web("[DEBUG] /src list failed:", exc)
 
         startup_succeeded = False
 

@@ -4,7 +4,11 @@ import random
 from collections import Counter
 from random import randint
 
-from noise import pnoise2
+try:
+    from noise import pnoise2
+except Exception:
+    # Browser/Pyodide fallback when the native noise wheel is unavailable.
+    from map_system.noise_utils import pnoise2
 
 from map_system.tiles import *
 from map_system.tiles import default
